@@ -3,7 +3,7 @@
 const NETWORK_MAP_DATA = {
   "_meta": {
     "version": "4.0",
-    "description": "holey.net Local Cyber Range — container-based attack/defense training environment. Linux services run as Docker containers. Windows targets run via dockur/windows with KVM. Segmented corporate network with DMZ, internal servers, user workstations, SOC, SIEM, and database zones.",
+    "description": "secure.net Local Cyber Range — container-based attack/defense training environment. Linux services run as Docker containers. Windows targets run via dockur/windows with KVM. Segmented corporate network with DMZ, internal servers, user workstations, SOC, SIEM, and database zones.",
     "deployment": "docker-compose",
     "host_requirements": {
       "note": "dockur/windows requires KVM. On macOS use Docker Desktop + Rosetta, or deploy to the Beelink SER5 Pro (Linux host with KVM support). All Linux containers run on any Docker host.",
@@ -70,7 +70,7 @@ const NETWORK_MAP_DATA = {
     "Scenario": {
       "subnet": "9.53.99.0/24",
       "docker_name": "scenario",
-      "description": "Scenario/management segment — attacker scenario engine"
+      "description": "Scenario/management segment — scenario engine"
     },
     "Main": {
       "subnet": "17.93.8.0/29",
@@ -80,19 +80,19 @@ const NETWORK_MAP_DATA = {
     "External": {
       "subnet": "any",
       "docker_name": "external",
-      "description": "Simulates the internet — attacker hosts fake domains, C2 infra, and traffic generation"
+      "description": "Simulates the internet — scenario engine hosts fake domains, C2 infra, and traffic generation"
     }
   },
   "machines": {
-    "attacker": {
+    "scenario": {
       "OS": "Kali (rolling)",
       "CPUs": "4",
       "Memory (GB)": "6",
       "HDD Size (GB)": "80",
-      "description": "Scenario engine and fake internet node. Runs attack orchestration (Salt Master, Metasploit, CRAM) alongside simulated internet services (CoreDNS, Caddy HTTPS, SMTP, traffic generators). Scenarios stored at /home/trainer/scenarios.",
+      "description": "Scenario engine and fake internet node. Runs attack tools (Metasploit, nmap, Impacket, BloodHound, CrackMapExec, Responder, Sliver C2, Evil-WinRM) and fake internet services (Caddy HTTPS, CoreDNS, Postfix). Serves Windows setup scripts at http://172.16.0.1/setup/. SSH access from host on port 2222. Scenarios mounted at /home/trainer/scenarios.",
       "deploy": {
         "type": "linux-container",
-        "image": "kalilinux/kali-rolling",
+        "image": "cyber-range/scenario:local (build: ./dockerfiles/scenario)",
         "mem_limit": "6g",
         "cap_add": ["NET_ADMIN", "NET_RAW"],
         "privileged": false,
@@ -173,10 +173,10 @@ const NETWORK_MAP_DATA = {
       "CPUs": "1",
       "Memory (GB)": "0.5",
       "HDD Size (GB)": "5",
-      "description": "Linux DMZ web server running Apache. Hosts a lifestyle/magazine website. Vulnerable web application surface for initial access scenarios.",
+      "description": "Linux DMZ web server running Apache + PHP. Hosts web01 (employee portal). Content swapped per scenario via ./webapps/web01/ volume mount. Wazuh agent pre-baked.",
       "deploy": {
         "type": "linux-container",
-        "image": "ubuntu:22.04",
+        "image": "cyber-range/web-lin:local (build: ./dockerfiles/web-lin)",
         "mem_limit": "512m",
         "volumes": ["./webapps/web01:/var/www/html:ro"],
       },
@@ -216,10 +216,10 @@ const NETWORK_MAP_DATA = {
       "CPUs": "1",
       "Memory (GB)": "0.5",
       "HDD Size (GB)": "5",
-      "description": "DMZ DNS server. Provides name resolution within the DMZ. Used in DNS tunneling and C2-over-DNS scenarios as a pivot point.",
+      "description": "DMZ DNS server (Windows, standalone workgroup). Forwards unknown queries to scenario engine (9.53.99.47) for fake internet resolution. Used in DNS tunneling and C2-over-DNS scenarios.",
       "deploy": {
-        "type": "linux-container",
-        "image": "ubuntu:22.04",
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
         "mem_limit": "512m",
       },
       "interfaces": [
@@ -240,7 +240,7 @@ const NETWORK_MAP_DATA = {
         "mem_limit": "256m",
         "environment": {
           "RELAYHOST": "192.168.200.10",
-          "ALLOWED_SENDER_DOMAINS": "holey.net"
+          "ALLOWED_SENDER_DOMAINS": "secure.net"
         },
       },
       "interfaces": [
@@ -254,7 +254,7 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "4",
       "HDD Size (GB)": "60",
-      "description": "Primary Active Directory Domain Controller for the holey.net domain. Runs AD DS, DNS, AD CS (PKI), and Kerberos. High-value target for credential attacks, DCSync, Golden Ticket, and ADCS scenarios (ESC1, ESC4, ESC8).",
+      "description": "Primary Active Directory Domain Controller for the secure.net domain. Runs AD DS, DNS, AD CS (PKI co-hosted on DC), and Kerberos. High-value target for credential attacks, DCSync, Golden Ticket, and ADCS scenarios (ESC1, ESC4, ESC8 misconfigs baked in).",
       "deploy": {
         "type": "windows-container",
         "image": "ghcr.io/dockur/windows",
@@ -278,7 +278,7 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "6",
       "HDD Size (GB)": "60",
-      "description": "Microsoft Exchange mail server for the holey.net domain. Receives mail relayed from mail-relay. Used in phishing, email exfiltration, and credential harvesting scenarios.",
+      "description": "Microsoft Exchange mail server for the secure.net domain. Receives mail relayed from mail-relay. Used in phishing, email exfiltration, and credential harvesting scenarios. Fully functional mail flow (60-90 min first-boot).",
       "deploy": {
         "type": "windows-container",
         "image": "ghcr.io/dockur/windows",
@@ -326,14 +326,16 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "4",
       "HDD Size (GB)": "40",
-      "description": "Microsoft SQL Server database host (Linux). Stores application databases for web servers and internal services. Used in SQL injection, credential dumping via xp_cmdshell, and data exfiltration scenarios.",
+      "description": "Microsoft SQL Server 2022 on Linux (Ubuntu). Domain joined to secure.net via realmd/sssd. Has SPN registered for Kerberoasting (svc_mssql). Used in SQL injection, xp_cmdshell RCE, credential dumping, and Kerberoasting scenarios.",
       "deploy": {
         "type": "linux-container",
-        "image": "mcr.microsoft.com/mssql/server:2022-latest",
+        "image": "cyber-range/db01:local (build: ./dockerfiles/db01, extends mcr.microsoft.com/mssql/server:2022-latest)",
         "mem_limit": "4g",
         "environment": {
-          "ACCEPT_EULA": "Y",
-          "MSSQL_SA_PASSWORD": "P@ssw0rd123!"
+          "ACCEPT_EULA": "${ACCEPT_EULA}",
+          "MSSQL_SA_PASSWORD": "${MSSQL_SA_PASSWORD}",
+          "AD_DOMAIN": "${AD_DOMAIN}",
+          "AD_ADMIN_PASSWORD": "${AD_ADMIN_PASSWORD}"
         },
       },
       "interfaces": [
@@ -346,10 +348,10 @@ const NETWORK_MAP_DATA = {
       "CPUs": "1",
       "Memory (GB)": "1",
       "HDD Size (GB)": "10",
-      "description": "Linux developer workstation. Simulates a developer or engineering endpoint on the corporate network. Used in Linux persistence, LD_PRELOAD rootkit, and SSH key harvesting scenarios.",
+      "description": "Linux developer workstation. Two accounts: devuser (developer, docker, git, ansible) and sysadmin (elevated, sudo, bash history with admin creds). Used in Linux persistence, LD_PRELOAD rootkit, SSH key harvesting, and credential reuse scenarios.",
       "deploy": {
         "type": "linux-container",
-        "image": "ubuntu:24.04",
+        "image": "cyber-range/wks-linux:local (build: ./dockerfiles/wks-linux)",
         "mem_limit": "1g",
       },
       "interfaces": [
@@ -362,7 +364,7 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "4",
       "HDD Size (GB)": "60",
-      "description": "Windows 10 user workstation joined to holey.net domain. Standard corporate endpoint. Primary target for phishing payload delivery, credential harvesting, and lateral movement.",
+      "description": "Windows 10 user workstation joined to secure.net domain. Standard corporate endpoint. Primary target for phishing payload delivery, credential harvesting, and lateral movement.",
       "deploy": {
         "type": "windows-container",
         "image": "ghcr.io/dockur/windows",
@@ -386,7 +388,7 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "4",
       "HDD Size (GB)": "60",
-      "description": "Windows 11 user workstation joined to holey.net domain. Modern endpoint for testing detection of attacks against current-generation OS defenses (SmartScreen, Credential Guard, AMSI).",
+      "description": "Windows 11 user workstation joined to secure.net domain. Modern endpoint for testing detection of attacks against current-generation OS defenses (SmartScreen, Credential Guard, AMSI).",
       "deploy": {
         "type": "windows-container",
         "image": "ghcr.io/dockur/windows",
@@ -405,24 +407,24 @@ const NETWORK_MAP_DATA = {
         {"network": "User","ip": "192.168.100.12/24"}
       ]
     },
-    "wks-win7": {
-      "OS": "Windows 7 SP1",
-      "CPUs": "1",
-      "Memory (GB)": "2",
-      "HDD Size (GB)": "20",
-      "description": "Legacy Windows 7 user workstation joined to holey.net domain. Intentionally unpatched to support EternalBlue (MS17-010) and other legacy exploit scenarios.",
+    "wks-macos": {
+      "OS": "macOS 14 Sonoma",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "64",
+      "description": "macOS 14 Sonoma user workstation. Intentionally unpatched to support known CVEs: CVE-2024-23222 (WebKit type confusion zero-day), CVE-2023-41064/CVE-2023-41061 BLASTPASS zero-click exploit (Pegasus), CVE-2024-23296 (RTKit kernel memory corruption zero-day), and CVE-2024-44308/CVE-2024-44309 (WebKit RCE zero-days).",
       "deploy": {
-        "type": "windows-container",
-        "image": "ghcr.io/dockur/windows",
-        "mem_limit": "2g",
+        "type": "macos-container",
+        "image": "dockurr/macos",
+        "mem_limit": "4g",
         "requires_kvm": true,
         "environment": {
-          "VERSION": "win7",
-          "RAM_SIZE": "2G",
-          "CPU_CORES": "1",
-          "DISK_SIZE": "20G"
+          "VERSION": "14",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "64G"
         },
-        "devices": ["/dev/kvm"],
+        "devices": ["/dev/kvm", "/dev/net/tun"],
       },
       "interfaces": [
         {"network": "C2",  "ip": "172.16.0.103/24"},
@@ -430,29 +432,26 @@ const NETWORK_MAP_DATA = {
       ]
     },
     "wazuh": {
-      "OS": "Ubuntu 22.04",
-      "CPUs": "2",
-      "Memory (GB)": "4",
+      "OS": "Linux (Wazuh 4.9.x)",
+      "CPUs": "4",
+      "Memory (GB)": "5",
       "HDD Size (GB)": "50",
-      "description": "Wazuh all-in-one SIEM — manager, indexer, and dashboard. Receives logs and events from Wazuh agents on all hosts. Provides MITRE ATT&CK-mapped alerting, file integrity monitoring, vulnerability detection, and active response.",
+      "description": "Wazuh SIEM stack — three containers: wazuh.manager (agent enrollment PSK, OSSEC rules), wazuh.indexer (OpenSearch data store), wazuh.dashboard (HTTPS UI on host :443). Manager also on C2 (172.16.0.5) so Linux agents reach it without routing through fw-core. Run 'make build' to generate TLS certs before first 'make up'.",
       "deploy": {
         "type": "linux-container",
-        "image": "wazuh/wazuh-odfe:latest",
-        "mem_limit": "4g",
-        "environment": {
-          "WAZUH_MANAGER": "0.0.0.0",
-          "WAZUH_API_USER": "wazuh",
-          "WAZUH_API_PASSWORD": "changeme123!"
+        "images": {
+          "manager":   "wazuh/wazuh-manager:4.9.2",
+          "indexer":   "wazuh/wazuh-indexer:4.9.2",
+          "dashboard": "wazuh/wazuh-dashboard:4.9.2"
         },
-        "volumes": [
-          "./data/wazuh/data:/var/ossec/data",
-          "./data/wazuh/logs:/var/ossec/logs",
-          "./config/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro"
-        ],
-        "ports": ["1514:1514/udp", "1515:1515", "55000:55000", "443:443"],
+        "ports": ["1514:1514", "1515:1515", "55000:55000", "443:5601"],
+        "certs": "config/wazuh/certs/ — generated by 'make certs' (openssl)"
       },
       "interfaces": [
-        {"network": "SIEM","ip": "192.168.66.50/24"}
+        {"network": "SIEM", "ip": "192.168.66.50/24", "service": "wazuh.manager"},
+        {"network": "SIEM", "ip": "192.168.66.20/24", "service": "wazuh.indexer"},
+        {"network": "SIEM", "ip": "192.168.66.10/24", "service": "wazuh.dashboard"},
+        {"network": "C2",   "ip": "172.16.0.5/24",    "service": "wazuh.manager (agent comms)"}
       ]
     },
     "soc-ws": {
@@ -460,7 +459,7 @@ const NETWORK_MAP_DATA = {
       "CPUs": "2",
       "Memory (GB)": "4",
       "HDD Size (GB)": "60",
-      "description": "SOC analyst workstation. Pre-loaded with investigation tools (Zenmap, Ghidra, browser shortcuts to SIEMs). Accessible via Guacamole from the access/training portal.",
+      "description": "SOC analyst workstation. Standalone (NOT domain joined) — out-of-band analyst machine. Pre-loaded with Sysinternals, Wireshark, Nmap. RDP shortcuts to all internal Windows VMs. Access via noVNC on host :8006 for initial setup, then use Windows Remote Desktop Connection app.",
       "deploy": {
         "type": "windows-container",
         "image": "ghcr.io/dockur/windows",
@@ -497,6 +496,7 @@ const NETWORK_MAP_DATA = {
       "nodeType": {
         "linux":   "#1e6e3a",
         "windows": "#1e4e96",
+        "macos":   "#5a3e72",
         "fw":      "#8c4e14"
       },
       "attackZone": {
@@ -589,7 +589,7 @@ const NETWORK_MAP_DATA = {
     "_note": "Use Docker Compose profiles to run scenario-specific subsets and stay within 32 GB RAM.",
     "core": {
       "description": "Minimum viable range — covers lateral movement, AD attacks, credential dumping. ~20 GB RAM.",
-      "services": ["attacker","fw-dmz","fw-core","dc01","wks-win10","wazuh"]
+      "services": ["scenario","fw-dmz","fw-core","dc01","wks-win10","wazuh"]
     },
     "web-attack": {
       "description": "Adds DMZ web servers and DB for initial access → pivot scenarios. ~28 GB RAM.",

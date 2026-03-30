@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  soc-ws — SOC Analyst Workstation
+  OS: Windows 10
+  Standalone workgroup — NOT domain joined (out-of-band analyst machine)
+  RDP accessible from host via the C2/management networks
+-->
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <InputLocale>en-US</InputLocale><SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage><UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-Setup"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <UserData><AcceptEula>true</AcceptEula></UserData>
+    </component>
+  </settings>
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <ComputerName>SOC-WS</ComputerName><TimeZone>UTC</TimeZone>
+    </component>
+  </settings>
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <UserAccounts>
+        <AdministratorPassword><Value>Password1!</Value><PlainText>true</PlainText></AdministratorPassword>
+        <LocalAccounts>
+          <!-- analyst — primary SOC user account -->
+          <LocalAccount wcm:action="add">
+            <Password><Value>Password1!</Value><PlainText>true</PlainText></Password>
+            <DisplayName>SOC Analyst</DisplayName>
+            <Group>Administrators</Group>
+            <Name>analyst</Name>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+      <AutoLogon>
+        <Password><Value>Password1!</Value><PlainText>true</PlainText></Password>
+        <Username>analyst</Username><Enabled>true</Enabled><LogonCount>3</LogonCount>
+      </AutoLogon>
+      <FirstLogonCommands>
+        <SynchronousCommand wcm:action="add"><Order>1</Order>
+          <CommandLine>cmd.exe /c netsh advfirewall set allprofiles state off</CommandLine></SynchronousCommand>
+        <SynchronousCommand wcm:action="add"><Order>2</Order>
+          <CommandLine>cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f</CommandLine></SynchronousCommand>
+        <SynchronousCommand wcm:action="add"><Order>3</Order>
+          <CommandLine>cmd.exe /c winrm quickconfig -quiet</CommandLine></SynchronousCommand>
+        <SynchronousCommand wcm:action="add"><Order>4</Order>
+          <CommandLine>cmd.exe /c powershell -Command "Set-ExecutionPolicy Bypass -Scope LocalMachine -Force"</CommandLine></SynchronousCommand>
+        <SynchronousCommand wcm:action="add"><Order>5</Order>
+          <CommandLine>cmd.exe /c start /wait powershell -ExecutionPolicy Bypass -File A:\setup.ps1</CommandLine>
+      </FirstLogonCommands>
+    </component>
+  </settings>
+</unattend>

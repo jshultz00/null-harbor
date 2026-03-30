@@ -1,1 +1,11 @@
 remote_view.sh
+
+# Generated Wazuh TLS certificates (run 'make certs' to regenerate)
+config/wazuh/certs/*.pem
+config/wazuh/certs/*.srl
+
+# Runtime data (populated when containers run)
+data/wazuh/
+
+# macOS
+.DS_Store

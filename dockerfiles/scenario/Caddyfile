@@ -1,0 +1,23 @@
+# Caddyfile for the scenario (fake internet) container
+# Serves:
+#   - Windows setup scripts at http://172.16.0.1/setup/
+#   - Fake internet HTTPS on the scenario network
+
+# HTTP — available on all interfaces, used by Windows VMs to download setup.ps1
+:80 {
+    root * /var/www/html
+    file_server browse
+    log {
+        output stderr
+    }
+}
+
+# HTTPS — fake internet services on the scenario network
+:443 {
+    tls internal
+    root * /var/www/html
+    file_server browse
+    log {
+        output stderr
+    }
+}

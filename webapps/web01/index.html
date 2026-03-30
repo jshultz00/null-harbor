@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Corp — Employee Portal</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a2e; color: #eee; margin: 0; }
+        header { background: #16213e; padding: 20px 40px; }
+        header h1 { color: #e94560; margin: 0; }
+        main { padding: 40px; }
+        .card { background: #16213e; border-radius: 8px; padding: 20px; margin: 10px 0; }
+        .login-form input { display: block; margin: 8px 0; padding: 8px; width: 250px; background: #0f3460; border: 1px solid #e94560; color: #fff; border-radius: 4px; }
+        .login-form button { background: #e94560; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 8px; }
+        /* TODO: Remove debug comments before production */
+        /* Default creds: admin / Password1! */
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Secure Corp — Employee Portal</h1>
+        <p>Internal access only | IT Support: it-support@secure.net</p>
+    </header>
+    <main>
+        <div class="card">
+            <h2>Login</h2>
+            <form class="login-form" action="/login" method="POST">
+                <input type="text" name="username" placeholder="Username" />
+                <input type="password" name="password" placeholder="Password" />
+                <button type="submit">Sign In</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Announcements</h3>
+            <p>Q4 performance reviews due by Dec 15th.</p>
+            <p>New VPN policy effective January 1st — see IT for details.</p>
+            <p>Holiday party: December 20th, 6pm, Main Conference Room.</p>
+        </div>
+    </main>
+    <!-- Apache/2.4.57 (Ubuntu) PHP/8.1.2 -->
+</body>
+</html>

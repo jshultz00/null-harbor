@@ -1,21 +1,25 @@
-# ============================================================================
+# =============================================================================
 # Local Cyber Range — Docker Compose
-# ============================================================================
-# Usage:
-#   All up (needs ~64 GB):  docker compose up -d
-#   Core profile (~20 GB):  docker compose --profile core up -d
-#   Web-attack (~28 GB):    docker compose --profile web-attack up -d
-#
+# =============================================================================
 # Prerequisites:
-#   - Linux host with KVM enabled (/dev/kvm accessible) for Windows containers
-#   - Docker Engine 24+ and Compose v2
-#   - dockur/windows images pull from ghcr.io — ensure registry access
-# ============================================================================
+#   1. Run 'make build' once before first 'make up' (builds images + Wazuh certs)
+#   2. Linux host with KVM enabled for Windows/macOS VMs
+#
+# Usage:
+#   make up                     # core profile (~20 GB RAM)
+#   make up PROFILE=web-attack  # adds DMZ + DB (~28 GB RAM)
+#   make up PROFILE=full        # everything (~64 GB RAM)
+#   make down                   # stop, preserve Windows disk volumes
+#   make reset                  # full teardown including disk volumes
+#
+# Service names match the machine IDs in network_map.js.
+# All secrets are in .env — see .env.example for reference.
+# =============================================================================
 
 name: cyber-range
 
 # ---------------------------------------------------------------------------
-# Networks — one per segment in network_map.json
+# Networks — one per segment in network_map.js
 # ---------------------------------------------------------------------------
 networks:
   main:
@@ -38,6 +42,8 @@ networks:
     ipam:
       config: [{subnet: "172.16.100.0/24"}]
 
+  # Out-of-band control plane — connects scenario engine to every host.
+  # Wazuh manager also lives here so all agents can reach it without routing.
   c2:
     driver: bridge
     ipam:
@@ -83,14 +89,15 @@ networks:
 # ---------------------------------------------------------------------------
 services:
 
-  # ── Scenario Engine ────────────────────────────────────────────────────────
-  hn-scn:
-    container_name: HN-SCN
-    image: kalilinux/kali-rolling
+  # ── Attacker / Scenario Engine / Fake Internet ────────────────────────────
+  scenario:
+    container_name: SCENARIO
+    build: ./dockerfiles/scenario
+    image: cyber-range/scenario:local
     profiles: [core, web-attack, full]
-    hostname: hn-scn
+    hostname: scenario
     cap_add: [NET_ADMIN, NET_RAW]
-    mem_limit: 4g
+    mem_limit: 6g
     cpus: 4
     networks:
       scenario:
@@ -103,20 +110,20 @@ services:
       - ./scenarios:/home/trainer/scenarios
       - ./www:/var/www/html
     environment:
-      - KALI_PACKAGES=metasploit-framework,nmap,coredns,caddy,postfix
-    command: >
-      bash -c "
-        sysctl -w net.ipv4.ip_forward=1 &&
-        tail -f /dev/null
-      "
+      - RANGE_PASSWORD=${RANGE_PASSWORD}
+      - WAZUH_MANAGER=${WAZUH_MANAGER}
+      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
+      - WAZUH_AGENT_NAME=scenario
+    ports:
+      - "2222:22"   # SSH — trainer/developer access to the Kali scenario container
     restart: unless-stopped
 
   # ── Routing & Firewalls ────────────────────────────────────────────────────
-  hn-brdr-router:
-    container_name: HN-BRDR-Blue-Router
+  router:
+    container_name: ROUTER
     image: frrouting/frr:latest
     profiles: [web-attack, full]
-    hostname: hn-brdr-router
+    hostname: router
     cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
     mem_limit: 256m
     sysctls:
@@ -129,13 +136,15 @@ services:
         ipv4_address: "17.93.8.1"
     volumes:
       - ./config/brdr-router/frr.conf:/etc/frr/frr.conf:ro
+      - ./config/brdr-router/daemons:/etc/frr/daemons:ro
     restart: unless-stopped
 
-  hn-fw-dmz:
-    container_name: HN-FW-DMZ
-    image: debian:bookworm-slim
+  fw-dmz:
+    container_name: FW-DMZ
+    build: ./dockerfiles/fw
+    image: cyber-range/fw:local
     profiles: [core, web-attack, full]
-    hostname: hn-fw-dmz
+    hostname: fw-dmz
     cap_add: [NET_ADMIN, NET_RAW]
     mem_limit: 256m
     sysctls:
@@ -151,19 +160,19 @@ services:
         ipv4_address: "130.2.2.2"
     volumes:
       - ./config/fw-dmz/nftables.conf:/etc/nftables.conf:ro
-    command: >
-      bash -c "
-        apt-get update -qq && apt-get install -y -qq nftables iproute2 &&
-        nft -f /etc/nftables.conf &&
-        tail -f /dev/null
-      "
+    environment:
+      - RANGE_PASSWORD=${RANGE_PASSWORD}
+      - WAZUH_MANAGER=${WAZUH_MANAGER}
+      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
+      - WAZUH_AGENT_NAME=fw-dmz
     restart: unless-stopped
 
-  hn-fw-central:
-    container_name: HN-FW-Central
-    image: debian:bookworm-slim
+  fw-core:
+    container_name: FW-CORE
+    build: ./dockerfiles/fw
+    image: cyber-range/fw:local
     profiles: [core, web-attack, full]
-    hostname: hn-fw-central
+    hostname: fw-core
     cap_add: [NET_ADMIN, NET_RAW]
     mem_limit: 256m
     sysctls:
@@ -185,20 +194,20 @@ services:
         ipv4_address: "192.168.214.254"
     volumes:
       - ./config/fw-central/nftables.conf:/etc/nftables.conf:ro
-    command: >
-      bash -c "
-        apt-get update -qq && apt-get install -y -qq nftables iproute2 &&
-        nft -f /etc/nftables.conf &&
-        tail -f /dev/null
-      "
+    environment:
+      - RANGE_PASSWORD=${RANGE_PASSWORD}
+      - WAZUH_MANAGER=${WAZUH_MANAGER}
+      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
+      - WAZUH_AGENT_NAME=fw-core
     restart: unless-stopped
 
   # ── DMZ Linux Web Servers ─────────────────────────────────────────────────
-  hn-dmz-web01:
-    container_name: HN-DMZ-Web01
-    image: ubuntu:22.04
+  web-lin:
+    container_name: WEB-LIN
+    build: ./dockerfiles/web-lin
+    image: cyber-range/web-lin:local
     profiles: [web-attack, full]
-    hostname: hn-dmz-web01
+    hostname: web-lin
     mem_limit: 512m
     cpus: 1
     networks:
@@ -210,42 +219,19 @@ services:
         ipv4_address: "130.2.2.4"
     volumes:
       - ./webapps/web01:/var/www/html:ro
-    command: >
-      bash -c "
-        apt-get update -qq && apt-get install -y -qq apache2 &&
-        apache2ctl -D FOREGROUND
-      "
+    environment:
+      - RANGE_PASSWORD=${RANGE_PASSWORD}
+      - WAZUH_MANAGER=${WAZUH_MANAGER}
+      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
+      - WAZUH_AGENT_NAME=web-lin
     restart: unless-stopped
 
-  hn-dmz-web02:
-    container_name: HN-DMZ-Web02
-    image: ubuntu:22.04
-    profiles: [full]
-    hostname: hn-dmz-web02
-    mem_limit: 512m
-    cpus: 1
-    networks:
-      c2:
-        ipv4_address: "172.16.0.41"
-      dmz_internal:
-        ipv4_address: "172.16.100.11"
-      router_dmz:
-        ipv4_address: "130.2.2.8"
-    volumes:
-      - ./webapps/web02:/var/www/html:ro
-    command: >
-      bash -c "
-        apt-get update -qq && apt-get install -y -qq apache2 &&
-        apache2ctl -D FOREGROUND
-      "
-    restart: unless-stopped
-
-  # ── DMZ Windows Web Servers (dockur/windows) ──────────────────────────────
-  hn-dmz-web03:
-    container_name: HN-DMZ-Web03
+  # ── DMZ Windows Web Server (dockur/windows — standalone, no domain join) ──
+  web-win:
+    container_name: WEB-WIN
     image: ghcr.io/dockur/windows
     profiles: [web-attack, full]
-    hostname: hn-dmz-web03
+    hostname: web-win
     mem_limit: 4g
     cpus: 2
     devices:
@@ -259,47 +245,23 @@ services:
       router_dmz:
         ipv4_address: "130.2.2.12"
     environment:
-      VERSION: "2019"
+      VERSION: "2025"
       RAM_SIZE: "4G"
       CPU_CORES: "2"
       DISK_SIZE: "40G"
     volumes:
-      - hn-dmz-web03-disk:/storage
-      - ./config/web03/unattend.xml:/unattend.xml:ro
-    restart: unless-stopped
-
-  hn-dmz-web04:
-    container_name: HN-DMZ-Web04
-    image: ghcr.io/dockur/windows
-    profiles: [full]
-    hostname: hn-dmz-web04
-    mem_limit: 4g
-    cpus: 2
-    devices:
-      - /dev/kvm
-    cap_add: [NET_ADMIN]
-    networks:
-      c2:
-        ipv4_address: "172.16.0.43"
-      dmz_internal:
-        ipv4_address: "172.16.100.13"
-      router_dmz:
-        ipv4_address: "130.2.2.16"
-    environment:
-      VERSION: "2019"
-      RAM_SIZE: "4G"
-      CPU_CORES: "2"
-      DISK_SIZE: "40G"
-    volumes:
-      - hn-dmz-web04-disk:/storage
+      - web-win-disk:/storage
+      - ./config/web-win/unattend.xml:/unattend.xml:ro
+      - ./config/web-win/setup.ps1:/oem/setup.ps1:ro
     restart: unless-stopped
 
   # ── DMZ Supporting Services ───────────────────────────────────────────────
-  hn-dmz-dns:
-    container_name: HN-DMZ-DNS
+  # dns-dmz runs Windows DNS standalone (not domain joined)
+  dns-dmz:
+    container_name: DNS-DMZ
     image: ghcr.io/dockur/windows
     profiles: [web-attack, full]
-    hostname: hn-dmz-dns
+    hostname: dns-dmz
     mem_limit: 2g
     cpus: 1
     devices:
@@ -312,19 +274,21 @@ services:
       router_dmz:
         ipv4_address: "130.2.2.6"
     environment:
-      VERSION: "2016"
+      VERSION: "2025"
       RAM_SIZE: "2G"
       CPU_CORES: "1"
       DISK_SIZE: "20G"
     volumes:
-      - hn-dmz-dns-disk:/storage
+      - dns-dmz-disk:/storage
+      - ./config/dns-dmz/unattend.xml:/unattend.xml:ro
+      - ./config/dns-dmz/setup.ps1:/oem/setup.ps1:ro
     restart: unless-stopped
 
-  hn-dmz-mail-relay:
-    container_name: HN-DMZ-Mail-Relay
+  mail-relay:
+    container_name: MAIL-RELAY
     image: boky/postfix
     profiles: [web-attack, full]
-    hostname: hn-dmz-mail-relay
+    hostname: mail-relay
     mem_limit: 256m
     networks:
       c2:
@@ -334,17 +298,19 @@ services:
       router_dmz:
         ipv4_address: "130.2.2.20"
     environment:
-      RELAYHOST: "192.168.200.10"
-      ALLOWED_SENDER_DOMAINS: "holey.net"
-      POSTFIX_myhostname: "mail.holey.net"
+      RELAYHOST: "192.168.200.10"          # exchange server IP
+      ALLOWED_SENDER_DOMAINS: "secure.net"
+      POSTFIX_myhostname: "mail.secure.net"
     restart: unless-stopped
 
-  # ── Internal Servers ──────────────────────────────────────────────────────
-  hn-srv-dc01:
-    container_name: HN-SRV-DC01
+  # ── Internal Servers — Domain Controllers & AD Services ──────────────────
+  # dc01: Primary Domain Controller + AD CS (PKI)
+  # All other internal servers depend on dc01's LDAP healthcheck.
+  dc01:
+    container_name: DC01
     image: ghcr.io/dockur/windows
     profiles: [core, web-attack, full]
-    hostname: hn-srv-dc01
+    hostname: dc01
     mem_limit: 4g
     cpus: 2
     devices:
@@ -355,45 +321,32 @@ services:
       server:
         ipv4_address: "192.168.200.1"
     environment:
-      VERSION: "2016"
+      VERSION: "2025"
       RAM_SIZE: "4G"
       CPU_CORES: "2"
-      DISK_SIZE: "30G"
+      DISK_SIZE: "60G"
     volumes:
-      - hn-srv-dc01-disk:/storage
+      - dc01-disk:/storage
       - ./config/dc01/unattend.xml:/unattend.xml:ro
+      - ./config/dc01/setup.ps1:/oem/setup.ps1:ro
+    # Healthcheck polls LDAP port 389 on the Windows VM's server-network IP.
+    # start_period gives Windows 25 min to install OS and promote to DC.
+    # Other containers use condition: service_healthy to wait for AD to be ready.
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '(echo >/dev/tcp/192.168.200.1/389) 2>/dev/null'"]
+      interval: 60s
+      timeout: 10s
+      retries: 40
+      start_period: 25m
     restart: unless-stopped
 
-  hn-srv-dns:
-    container_name: HN-SRV-DNS
-    image: ghcr.io/dockur/windows
-    profiles: [full]
-    hostname: hn-srv-dns
-    mem_limit: 2g
-    cpus: 1
-    devices:
-      - /dev/kvm
-    networks:
-      c2:
-        ipv4_address: "172.16.0.71"
-      server:
-        ipv4_address: "192.168.200.100"
-    environment:
-      VERSION: "2016"
-      RAM_SIZE: "2G"
-      CPU_CORES: "1"
-      DISK_SIZE: "20G"
-    volumes:
-      - hn-srv-dns-disk:/storage
-    restart: unless-stopped
-
-  hn-srv-exchange:
-    container_name: HN-SRV-Exchange
+  exchange:
+    container_name: EXCHANGE
     image: ghcr.io/dockur/windows
     profiles: [web-attack, full]
-    hostname: hn-srv-exchange
-    mem_limit: 6g
-    cpus: 2
+    hostname: exchange
+    mem_limit: 8g
+    cpus: 4
     devices:
       - /dev/kvm
     networks:
@@ -402,47 +355,24 @@ services:
       server:
         ipv4_address: "192.168.200.10"
     environment:
-      VERSION: "2016"
-      RAM_SIZE: "6G"
-      CPU_CORES: "2"
-      DISK_SIZE: "60G"
+      VERSION: "2025"
+      RAM_SIZE: "8G"
+      CPU_CORES: "4"
+      DISK_SIZE: "80G"
     volumes:
-      - hn-srv-exchange-disk:/storage
+      - exchange-disk:/storage
+      - ./config/exchange/unattend.xml:/unattend.xml:ro
+      - ./config/exchange/setup.ps1:/oem/setup.ps1:ro
     depends_on:
-      - hn-srv-dc01
+      dc01:
+        condition: service_healthy
     restart: unless-stopped
 
-  hn-srv-ca:
-    container_name: HN-SRV-CA
+  fileserver:
+    container_name: FILESERVER
     image: ghcr.io/dockur/windows
     profiles: [full]
-    hostname: hn-srv-ca
-    mem_limit: 2g
-    cpus: 1
-    devices:
-      - /dev/kvm
-    networks:
-      c2:
-        ipv4_address: "172.16.0.73"
-      server:
-        ipv4_address: "192.168.200.12"
-    environment:
-      VERSION: "2016"
-      RAM_SIZE: "2G"
-      CPU_CORES: "1"
-      DISK_SIZE: "30G"
-    volumes:
-      - hn-srv-ca-disk:/storage
-      - ./config/ca/unattend.xml:/unattend.xml:ro
-    depends_on:
-      - hn-srv-dc01
-    restart: unless-stopped
-
-  hn-srv-files:
-    container_name: HN-SRV-Files
-    image: ghcr.io/dockur/windows
-    profiles: [full]
-    hostname: hn-srv-files
+    hostname: fileserver
     mem_limit: 2g
     cpus: 1
     devices:
@@ -453,71 +383,74 @@ services:
       server:
         ipv4_address: "192.168.200.6"
     environment:
-      VERSION: "2016"
+      VERSION: "2025"
       RAM_SIZE: "2G"
       CPU_CORES: "1"
       DISK_SIZE: "40G"
     volumes:
-      - hn-srv-files-disk:/storage
-      - ./data/shares:/shares:ro
+      - fileserver-disk:/storage
+      - ./config/fileserver/unattend.xml:/unattend.xml:ro
+      - ./config/fileserver/setup.ps1:/oem/setup.ps1:ro
     depends_on:
-      - hn-srv-dc01
+      dc01:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── Database ──────────────────────────────────────────────────────────────
-  hn-db-db01:
-    container_name: HN-DB-DB01
-    image: ghcr.io/dockur/windows
-    # Alternative (lighter, no KVM): image: mcr.microsoft.com/mssql/server:2019-latest
+  # db01 runs MSSQL on Linux — domain-joined via realmd at startup
+  db01:
+    container_name: DB01
+    build: ./dockerfiles/db01
+    image: cyber-range/db01:local
     profiles: [web-attack, full]
-    hostname: hn-db-db01
+    hostname: db01
     mem_limit: 4g
     cpus: 2
-    devices:
-      - /dev/kvm
     networks:
       c2:
         ipv4_address: "172.16.0.30"
       db:
         ipv4_address: "192.168.214.10"
     environment:
-      VERSION: "2016"
-      RAM_SIZE: "4G"
-      CPU_CORES: "2"
-      DISK_SIZE: "40G"
-    volumes:
-      - hn-db-db01-disk:/storage
+      RANGE_PASSWORD: ${RANGE_PASSWORD}
+      ACCEPT_EULA: ${ACCEPT_EULA}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      AD_DOMAIN: ${AD_DOMAIN}
+      AD_NETBIOS: ${AD_NETBIOS}
+      AD_ADMIN_PASSWORD: ${AD_ADMIN_PASSWORD}
+      WAZUH_MANAGER: ${WAZUH_MANAGER}
+      WAZUH_ENROLLMENT_PSK: ${WAZUH_ENROLLMENT_PSK}
+      WAZUH_AGENT_NAME: db01
+    depends_on:
+      dc01:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── User Workstations ─────────────────────────────────────────────────────
-  hn-user-wks-01:
-    container_name: HN-USER-WKS-01
-    image: ghcr.io/dockur/windows
+  wks-linux:
+    container_name: WKS-LINUX
+    build: ./dockerfiles/wks-linux
+    image: cyber-range/wks-linux:local
     profiles: [full]
-    hostname: hn-user-wks-01
-    mem_limit: 2g
+    hostname: wks-linux
+    mem_limit: 1g
     cpus: 1
-    devices:
-      - /dev/kvm
     networks:
       c2:
         ipv4_address: "172.16.0.100"
       user:
         ipv4_address: "192.168.100.10"
     environment:
-      VERSION: "win7"   # ⚠ May require providing your own ISO — test carefully
-      RAM_SIZE: "2G"
-      CPU_CORES: "1"
-      DISK_SIZE: "20G"
-    volumes:
-      - hn-user-wks01-disk:/storage
+      - WAZUH_MANAGER=${WAZUH_MANAGER}
+      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
+      - WAZUH_AGENT_NAME=wks-linux
     restart: unless-stopped
 
-  hn-user-wks-02:
-    container_name: HN-USER-WKS-02
+  wks-win10:
+    container_name: WKS-WIN10
     image: ghcr.io/dockur/windows
     profiles: [core, web-attack, full]
-    hostname: hn-user-wks-02
+    hostname: wks-win10
     mem_limit: 4g
     cpus: 2
     devices:
@@ -531,16 +464,21 @@ services:
       VERSION: "win10"
       RAM_SIZE: "4G"
       CPU_CORES: "2"
-      DISK_SIZE: "25G"
+      DISK_SIZE: "40G"
     volumes:
-      - hn-user-wks02-disk:/storage
+      - wks-win10-disk:/storage
+      - ./config/wks-win10/unattend.xml:/unattend.xml:ro
+      - ./config/wks-win10/setup.ps1:/oem/setup.ps1:ro
+    depends_on:
+      dc01:
+        condition: service_healthy
     restart: unless-stopped
 
-  hn-user-wks-03:
-    container_name: HN-USER-WKS-03
+  wks-win11:
+    container_name: WKS-WIN11
     image: ghcr.io/dockur/windows
     profiles: [full]
-    hostname: hn-user-wks-03
+    hostname: wks-win11
     mem_limit: 4g
     cpus: 2
     devices:
@@ -554,88 +492,156 @@ services:
       VERSION: "win11"
       RAM_SIZE: "4G"
       CPU_CORES: "2"
-      DISK_SIZE: "25G"
+      DISK_SIZE: "40G"
     volumes:
-      - hn-user-wks03-disk:/storage
+      - wks-win11-disk:/storage
+      - ./config/wks-win11/unattend.xml:/unattend.xml:ro
+      - ./config/wks-win11/setup.ps1:/oem/setup.ps1:ro
+    depends_on:
+      dc01:
+        condition: service_healthy
     restart: unless-stopped
 
-  hn-user-wks-04:
-    container_name: HN-USER-WKS-04
-    image: ubuntu:22.04
+  wks-macos:
+    container_name: WKS-MACOS
+    image: dockurr/macos
     profiles: [full]
-    hostname: hn-user-wks-04
-    mem_limit: 512m
-    cpus: 1
+    hostname: wks-macos
+    mem_limit: 4g
+    cpus: 2
+    stop_grace_period: 2m
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
     networks:
       c2:
         ipv4_address: "172.16.0.103"
       user:
         ipv4_address: "192.168.100.13"
-    command: >
-      bash -c "
-        apt-get update -qq && apt-get install -y -qq openssh-server sudo &&
-        useradd -m -s /bin/bash analyst && echo 'analyst:analyst' | chpasswd &&
-        usermod -aG sudo analyst &&
-        service ssh start && tail -f /dev/null
-      "
-    restart: unless-stopped
-
-  # ── SIEM Stack ────────────────────────────────────────────────────────────
-  hn-siem-rsyslog:
-    container_name: HN-SIEM-Rsyslog
-    image: rsyslog/syslog_appliance_alpine:latest
-    profiles: [core, web-attack, full]
-    hostname: hn-siem-rsyslog
-    mem_limit: 256m
-    networks:
-      siem:
-        ipv4_address: "192.168.66.150"
+    environment:
+      # macOS 14 Sonoma — intentionally unpatched for CVE scenarios
+      VERSION: "14"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "64G"
     volumes:
-      - ./data/rsyslog:/var/log/remote
-      - ./config/rsyslog/rsyslog.conf:/etc/rsyslog.conf:ro
+      - wks-macos-disk:/storage
+    # SSH (Remote Login): enable manually after first boot via:
+    #   System Settings → General → Sharing → Remote Login → ON
+    # Or run in Terminal: sudo systemsetup -setremotelogin on
     restart: unless-stopped
 
-  hn-siem-splunk:
-    container_name: HN-SIEM-Splunk
-    image: splunk/splunk:latest
-    profiles: [web-attack, full]
-    hostname: hn-siem-splunk
-    mem_limit: 4g
+  # ── SIEM — Wazuh ─────────────────────────────────────────────────────────
+  # Three-container Wazuh single-node stack: manager + indexer + dashboard.
+  # Run 'make build' before 'make up' to generate required TLS certificates.
+
+  wazuh.manager:
+    container_name: WAZUH-MANAGER
+    image: wazuh/wazuh-manager:${WAZUH_VERSION}
+    profiles: [core, web-attack, full]
+    hostname: wazuh.manager
+    mem_limit: 2g
     cpus: 2
     networks:
       siem:
         ipv4_address: "192.168.66.50"
+      # Also on C2 so all Linux agents can reach it without routing through fw-core
+      c2:
+        ipv4_address: "172.16.0.5"
     environment:
-      SPLUNK_START_ARGS: "--accept-license"
-      SPLUNK_PASSWORD: "changeme123"
+      INDEXER_URL: "https://wazuh.indexer:9200"
+      INDEXER_USERNAME: "admin"
+      INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD}
+      FILEBEAT_SSL_VERIFICATION_MODE: "full"
+      SSL_CERTIFICATE_AUTHORITIES: "/etc/ssl/root-ca.pem"
+      SSL_CERTIFICATE: "/etc/ssl/wazuh.manager.pem"
+      SSL_KEY: "/etc/ssl/wazuh.manager-key.pem"
+      API_USERNAME: "wazuh-wui"
+      API_PASSWORD: ${WAZUH_API_PASSWORD}
     volumes:
-      - ./data/splunk:/opt/splunk/var
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-queue:/var/ossec/queue
+      - ./config/wazuh/ossec.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ./config/wazuh/certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - ./config/wazuh/certs/wazuh.manager.pem:/etc/ssl/wazuh.manager.pem:ro
+      - ./config/wazuh/certs/wazuh.manager-key.pem:/etc/ssl/wazuh.manager-key.pem:ro
     ports:
-      - "8000:8000"   # Splunk Web UI — expose on host for analyst access
+      - "1514:1514"     # Agent event forwarding
+      - "1515:1515"     # Agent enrollment
+      - "55000:55000"   # Wazuh REST API
     restart: unless-stopped
 
-  hn-siem-securityonion:
-    container_name: HN-SIEM-SecurityOnion
-    image: securityonionsolutions/so-manager:latest
+  wazuh.indexer:
+    container_name: WAZUH-INDEXER
+    image: wazuh/wazuh-indexer:${WAZUH_VERSION}
     profiles: [core, web-attack, full]
-    hostname: hn-siem-securityonion
-    mem_limit: 8g
-    cpus: 4
+    hostname: wazuh.indexer
+    mem_limit: 2g
+    cpus: 2
     networks:
       siem:
-        ipv4_address: "192.168.66.26"
+        ipv4_address: "192.168.66.20"
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+      bootstrap.memory_lock: "true"
+      INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - ./data/securityonion:/nsm
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./config/wazuh/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+      - ./config/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+      - ./config/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem:ro
+      - ./config/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer-key.pem:ro
+      - ./config/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ./config/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
+    restart: unless-stopped
+
+  wazuh.dashboard:
+    container_name: WAZUH-DASHBOARD
+    image: wazuh/wazuh-dashboard:${WAZUH_VERSION}
+    profiles: [core, web-attack, full]
+    hostname: wazuh.dashboard
+    mem_limit: 1g
+    networks:
+      siem:
+        ipv4_address: "192.168.66.10"
+    environment:
+      INDEXER_USERNAME: "admin"
+      INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD}
+      WAZUH_API_URL: "https://wazuh.manager"
+      DASHBOARD_USERNAME: "kibanaserver"
+      DASHBOARD_PASSWORD: ${WAZUH_INDEXER_PASSWORD}
+      API_USERNAME: "wazuh-wui"
+      API_PASSWORD: ${WAZUH_API_PASSWORD}
+    volumes:
+      - ./config/wazuh/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+      - ./config/wazuh/certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem:ro
+      - ./config/wazuh/certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem:ro
+      - ./config/wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
     ports:
-      - "443:443"     # Security Onion UI — expose on host for analyst access
+      - "443:5601"    # Wazuh dashboard — HTTPS access from host
+    depends_on:
+      - wazuh.indexer
+      - wazuh.manager
     restart: unless-stopped
 
   # ── SOC Workstation ───────────────────────────────────────────────────────
-  hn-soc-wks-01:
-    container_name: HN-SOC-WKS-01
+  # Standalone (not domain joined) — out-of-band analyst machine.
+  # Access via noVNC on :8006, then configure RDP client inside Windows.
+  soc-ws:
+    container_name: SOC-WS
     image: ghcr.io/dockur/windows
     profiles: [core, web-attack, full]
-    hostname: hn-soc-wks-01
+    hostname: soc-ws
     mem_limit: 4g
     cpus: 2
     devices:
@@ -651,27 +657,32 @@ services:
       VERSION: "win10"
       RAM_SIZE: "4G"
       CPU_CORES: "2"
-      DISK_SIZE: "25G"
-    ports:
-      - "8006:8006"   # dockur/windows noVNC port — analyst desktop access
+      DISK_SIZE: "40G"
     volumes:
-      - hn-soc-wks01-disk:/storage
+      - soc-ws-disk:/storage
+      - ./config/soc-ws/unattend.xml:/unattend.xml:ro
+      - ./config/soc-ws/setup.ps1:/oem/setup.ps1:ro
+    ports:
+      - "8006:8006"   # noVNC — initial console access before RDP is configured
     restart: unless-stopped
 
 # ---------------------------------------------------------------------------
-# Volumes (persistent disk images for dockur/windows containers)
+# Volumes — persistent disk images for Windows and macOS VMs
 # ---------------------------------------------------------------------------
 volumes:
-  hn-dmz-web03-disk:
-  hn-dmz-web04-disk:
-  hn-dmz-dns-disk:
-  hn-srv-dc01-disk:
-  hn-srv-dns-disk:
-  hn-srv-exchange-disk:
-  hn-srv-ca-disk:
-  hn-srv-files-disk:
-  hn-db-db01-disk:
-  hn-user-wks01-disk:
-  hn-user-wks02-disk:
-  hn-user-wks03-disk:
-  hn-soc-wks01-disk:
+  # Windows VM disk images (preserved on 'make down', destroyed on 'make reset')
+  web-win-disk:
+  dns-dmz-disk:
+  dc01-disk:
+  exchange-disk:
+  fileserver-disk:
+  wks-win10-disk:
+  wks-win11-disk:
+  wks-macos-disk:
+  soc-ws-disk:
+
+  # Wazuh persistent data
+  wazuh-manager-data:
+  wazuh-manager-logs:
+  wazuh-manager-queue:
+  wazuh-indexer-data:

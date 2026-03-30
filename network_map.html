@@ -64,6 +64,7 @@ svg { display: block; }
 .type-pill { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
 .type-pill.linux   { background: #1a3a2a; color: #3fb950; border: 1px solid #3fb950; }
 .type-pill.windows { background: #1a2a3a; color: #58a6ff; border: 1px solid #58a6ff; }
+.type-pill.macos   { background: #2a1a3a; color: #bf91e8; border: 1px solid #bf91e8; }
 .type-pill.fw      { background: #3a2a1a; color: #d29922; border: 1px solid #d29922; }
 .node-group { cursor: pointer; }
 .node-group:hover .node-rect { filter: brightness(1.4); }
@@ -156,6 +157,7 @@ const SEGMENT_TO_ZONE = Object.fromEntries(
 
 const COLOR_LINUX         = _L.colors.nodeType.linux;
 const COLOR_WINDOWS       = _L.colors.nodeType.windows;
+const COLOR_MACOS         = _L.colors.nodeType.macos;
 const COLOR_FW            = _L.colors.nodeType.fw;
 const COLOR_ATTACK_ZONE   = _L.colors.attackZone;
 const TYPE_BORDER         = _L.colors.typeBorder;
@@ -174,6 +176,7 @@ function classifyType(m) {
   const t = (m.deploy && m.deploy.type) || '';
   if (t === 'linux-firewall' || t === 'linux-router') return 'fw';
   if (t === 'windows-container') return 'windows';
+  if (t === 'macos-container') return 'macos';
   return 'linux';
 }
 
@@ -343,6 +346,7 @@ function computeLayout() {
 function getNodeFill(id, classified) {
   const { type } = classified[id];
   if (type === 'windows') return COLOR_WINDOWS;
+  if (type === 'macos')   return COLOR_MACOS;
   if (type === 'fw')      return COLOR_FW;
   return COLOR_LINUX;
 }
@@ -381,7 +385,7 @@ function renderDiagram(layout) {
     x: attackZone.x + 8,
     y: attackZone.y + 12,
     class: 'zone-label', fill: COLOR_ATTACK_ZONE.labelColor,
-  }, 'ATTACK / SCENARIO');
+  }, 'SCENARIO');
   svg.appendChild(atLabel);
 
   // Zone backgrounds
@@ -581,8 +585,8 @@ function buildBars() {
   document.getElementById('ram-bars').innerHTML = barsHtml;
 
   // By type breakdown
-  const typeCount = { linux: 0, windows: 0, fw: 0 };
-  const typeRam   = { linux: 0, windows: 0, fw: 0 };
+  const typeCount = { linux: 0, windows: 0, macos: 0, fw: 0 };
+  const typeRam   = { linux: 0, windows: 0, macos: 0, fw: 0 };
   allIds.forEach(id => {
     const t = classifyType(machines[id]);
     typeCount[t]++;
