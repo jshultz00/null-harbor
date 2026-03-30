@@ -17,7 +17,7 @@ if ($stage -eq 1) {
     Write-Host "[exchange] Stage 1: Domain join to secure.net..."
     $cred = New-Object System.Management.Automation.PSCredential(
         "SECURE\Administrator",
-        (ConvertTo-SecureString "Password1!" -AsPlainText -Force)
+        (ConvertTo-SecureString "Password!" -AsPlainText -Force)
     )
 
     $joined = $false

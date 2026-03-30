@@ -42,7 +42,7 @@ if ($stage -eq 1) {
         -DomainMode "WinThreshold" `
         -ForestMode "WinThreshold" `
         -InstallDns:$true `
-        -SafeModeAdministratorPassword (ConvertTo-SecureString "Password1!" -AsPlainText -Force) `
+        -SafeModeAdministratorPassword (ConvertTo-SecureString "Password!" -AsPlainText -Force) `
         -Force:$true `
         -NoRebootOnCompletion:$false
 }
@@ -75,7 +75,7 @@ if ($stage -eq 2) {
 
     # ── Create Domain Users ────────────────────────────────────────────────────
     Write-Host "[dc01] Creating domain users..."
-    $secPass = ConvertTo-SecureString "Password1!" -AsPlainText -Force
+    $secPass = ConvertTo-SecureString "Password!" -AsPlainText -Force
 
     $users = @(
         @{Name="jsmith";    Full="John Smith";     Title="Developer"},

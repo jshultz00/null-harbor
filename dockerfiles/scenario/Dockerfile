@@ -66,7 +66,7 @@ RUN curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH \
 # ── SSH configuration ─────────────────────────────────────────────────────────
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
-    && echo "root:${RANGE_PASSWORD:-Password1!}" | chpasswd || true
+    && echo "root:${RANGE_PASSWORD:-Password!}" | chpasswd || true
 
 # ── Caddyfile for serving setup scripts and fake internet content ─────────────
 COPY Caddyfile /etc/caddy/Caddyfile

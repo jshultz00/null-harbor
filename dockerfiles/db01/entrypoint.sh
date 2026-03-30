@@ -2,7 +2,7 @@
 # db01 entrypoint — runs as root; handles AD join, sshd, Wazuh before execing sqlservr
 
 # ── SSH ────────────────────────────────────────────────────────────────────────
-echo "root:${RANGE_PASSWORD:-Password1!}" | chpasswd
+echo "root:${RANGE_PASSWORD:-Password!}" | chpasswd
 ssh-keygen -A -q
 mkdir -p /run/sshd
 /usr/sbin/sshd

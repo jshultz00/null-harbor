@@ -494,13 +494,13 @@ const NETWORK_MAP_DATA = {
     },
     "colors": {
       "nodeType": {
-        "linux":   "#1e6e3a",
-        "windows": "#1e4e96",
-        "macos":   "#5a3e72",
-        "fw":      "#8c4e14"
+        "linux":   "#2a9a51",
+        "windows": "#2a6dd2",
+        "macos":   "#7e57a0",
+        "fw":      "#c46d1c"
       },
       "attackZone": {
-        "bgColor":     "#1a0c38",
+        "bgColor":     "#341870",
         "strokeColor": "#6e3fd4",
         "labelColor":  "#bc8cff"
       },
@@ -514,7 +514,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "DMZ",
         "label":         "DMZ",
-        "bgColor":       "#0a1830",
+        "bgColor":       "#143060",
         "x":             18,
         "y":             390,
         "cols":          3,
@@ -526,7 +526,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "Server",
         "label":         "SERVER",
-        "bgColor":       "#081c0e",
+        "bgColor":       "#10381c",
         "x":             530,
         "y":             60,
         "cols":          3,
@@ -538,7 +538,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "SOC",
         "label":         "SOC",
-        "bgColor":       "#0c0a24",
+        "bgColor":       "#181448",
         "x":             848,
         "y":             248,
         "cols":          1,
@@ -550,7 +550,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "User",
         "label":         "USERS",
-        "bgColor":       "#1a1206",
+        "bgColor":       "#34240c",
         "x":             848,
         "y":             390,
         "cols":          2,
@@ -562,7 +562,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "SIEM",
         "label":         "SIEM",
-        "bgColor":       "#080e1e",
+        "bgColor":       "#101c3c",
         "x":             530,
         "y":             600,
         "cols":          2,
@@ -574,7 +574,7 @@ const NETWORK_MAP_DATA = {
       {
         "id":            "DB",
         "label":         "DB",
-        "bgColor":       "#1c060e",
+        "bgColor":       "#380c1c",
         "x":             848,
         "y":             600,
         "cols":          1,

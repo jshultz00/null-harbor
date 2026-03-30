@@ -31,11 +31,11 @@
                processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
                language="neutral" versionScope="nonSxS">
       <UserAccounts>
-        <AdministratorPassword><Value>Password1!</Value><PlainText>true</PlainText></AdministratorPassword>
+        <AdministratorPassword><Value>Password!</Value><PlainText>true</PlainText></AdministratorPassword>
         <LocalAccounts>
           <!-- analyst — primary SOC user account -->
           <LocalAccount wcm:action="add">
-            <Password><Value>Password1!</Value><PlainText>true</PlainText></Password>
+            <Password><Value>Password!</Value><PlainText>true</PlainText></Password>
             <DisplayName>SOC Analyst</DisplayName>
             <Group>Administrators</Group>
             <Name>analyst</Name>
@@ -43,7 +43,7 @@
         </LocalAccounts>
       </UserAccounts>
       <AutoLogon>
-        <Password><Value>Password1!</Value><PlainText>true</PlainText></Password>
+        <Password><Value>Password!</Value><PlainText>true</PlainText></Password>
         <Username>analyst</Username><Enabled>true</Enabled><LogonCount>3</LogonCount>
       </AutoLogon>
       <FirstLogonCommands>

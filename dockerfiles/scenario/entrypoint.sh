@@ -2,7 +2,7 @@
 set -e
 
 # ── Root password (for SSH access) ────────────────────────────────────────────
-echo "root:${RANGE_PASSWORD:-Password1!}" | chpasswd
+echo "root:${RANGE_PASSWORD:-Password!}" | chpasswd
 
 # ── IP forwarding (scenario is the fake internet gateway) ────────────────────
 sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true

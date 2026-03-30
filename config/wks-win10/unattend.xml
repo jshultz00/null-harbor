@@ -26,10 +26,10 @@
                processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
                language="neutral" versionScope="nonSxS">
       <UserAccounts>
-        <AdministratorPassword><Value>Password1!</Value><PlainText>true</PlainText></AdministratorPassword>
+        <AdministratorPassword><Value>Password!</Value><PlainText>true</PlainText></AdministratorPassword>
       </UserAccounts>
       <AutoLogon>
-        <Password><Value>Password1!</Value><PlainText>true</PlainText></Password>
+        <Password><Value>Password!</Value><PlainText>true</PlainText></Password>
         <Username>Administrator</Username><Enabled>true</Enabled><LogonCount>5</LogonCount>
       </AutoLogon>
       <FirstLogonCommands>

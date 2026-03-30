@@ -6,7 +6,7 @@ Write-Host "[wks-win10] Starting setup at $(Get-Date)"
 
 if (-not (Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain) {
     $cred = New-Object System.Management.Automation.PSCredential(
-        "SECURE\Administrator", (ConvertTo-SecureString "Password1!" -AsPlainText -Force))
+        "SECURE\Administrator", (ConvertTo-SecureString "Password!" -AsPlainText -Force))
     for ($i = 1; $i -le 20; $i++) {
         try { Add-Computer -DomainName "secure.net" -Credential $cred -Force -ErrorAction Stop; break }
         catch { Write-Host "  Attempt $i failed — retrying in 60s..."; Start-Sleep 60 }
@@ -33,10 +33,10 @@ if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
 Set-ItemProperty -Path $regPath -Name "EnableMulticast" -Value 1 -Type DWord -Force
 
 # Local admin account and credential loot (scenario targets)
-net user localadmin Password1! /add /fullname:"Local Admin" /comment:"IT support account" 2>$null
+net user localadmin Password! /add /fullname:"Local Admin" /comment:"IT support account" 2>$null
 net localgroup Administrators localadmin /add 2>$null
-cmdkey /add:dc01.secure.net /user:SECURE\Administrator /pass:Password1!
-cmdkey /add:fileserver.secure.net /user:SECURE\jsmith /pass:Password1!
+cmdkey /add:dc01.secure.net /user:SECURE\Administrator /pass:Password!
+cmdkey /add:fileserver.secure.net /user:SECURE\jsmith /pass:Password!
 
 # ── OpenSSH Server ────────────────────────────────────────────────────────────
 Write-Host "[wks-win10] Enabling OpenSSH Server..."

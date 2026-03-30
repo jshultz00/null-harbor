@@ -11,7 +11,7 @@ if (-not (Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain) {
     Write-Host "[fileserver] Joining domain secure.net..."
     $cred = New-Object System.Management.Automation.PSCredential(
         "SECURE\Administrator",
-        (ConvertTo-SecureString "Password1!" -AsPlainText -Force)
+        (ConvertTo-SecureString "Password!" -AsPlainText -Force)
     )
     for ($i = 1; $i -le 20; $i++) {
         try {
@@ -49,8 +49,8 @@ foreach ($share in $shares) {
 
 # Realistic loot files
 "Q4 2024 Projections - CONFIDENTIAL" | Out-File "C:\Shares\Finance\Q4-2024-projections.txt"
-"Username,Password`njsmith,Password1!`nmjones,Password1!" | Out-File "C:\Shares\HR\employee-credentials-backup.csv"
-"# Admin credentials`n# DC01: Administrator / Password1!" | Out-File "C:\Shares\IT\admin-notes.txt"
+"Username,Password`njsmith,Password!`nmjones,Password!" | Out-File "C:\Shares\HR\employee-credentials-backup.csv"
+"# Admin credentials`n# DC01: Administrator / Password!" | Out-File "C:\Shares\IT\admin-notes.txt"
 "net use Z: \\dc01\sysvol /persistent:yes" | Out-File "C:\Shares\Scripts\logon.bat"
 
 # ── PrintNightmare (CVE-2021-34527) ───────────────────────────────────────────

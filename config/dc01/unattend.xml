@@ -47,14 +47,14 @@
 
       <UserAccounts>
         <AdministratorPassword>
-          <Value>Password1!</Value>
+          <Value>Password!</Value>
           <PlainText>true</PlainText>
         </AdministratorPassword>
       </UserAccounts>
 
       <AutoLogon>
         <Password>
-          <Value>Password1!</Value>
+          <Value>Password!</Value>
           <PlainText>true</PlainText>
         </Password>
         <Username>Administrator</Username>

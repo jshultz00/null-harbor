@@ -36,7 +36,7 @@ RUN curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH \
 # ── User accounts ─────────────────────────────────────────────────────────────
 # devuser — developer with SSH keys, git, docker, sudo
 RUN useradd -m -s /bin/bash devuser \
-    && echo "devuser:Password1!" | chpasswd \
+    && echo "devuser:Password!" | chpasswd \
     && usermod -aG sudo devuser \
     && usermod -aG docker devuser \
     && mkdir -p /home/devuser/.ssh \
@@ -50,12 +50,12 @@ RUN useradd -m -s /bin/bash devuser \
 
 # sysadmin — elevated user with sudo, ansible, credentials in history
 RUN useradd -m -s /bin/bash sysadmin \
-    && echo "sysadmin:Password1!" | chpasswd \
+    && echo "sysadmin:Password!" | chpasswd \
     && usermod -aG sudo sysadmin \
     # Incriminating bash history (classic scenario target)
     && echo 'ssh Administrator@192.168.200.1' >> /home/sysadmin/.bash_history \
-    && echo 'net rpc password Administrator Password1! -U SECURE/Administrator -S 192.168.200.1' >> /home/sysadmin/.bash_history \
-    && echo 'mysql -h 192.168.214.10 -u sa -pPassword1! secure_db' >> /home/sysadmin/.bash_history \
+    && echo 'net rpc password Administrator Password! -U SECURE/Administrator -S 192.168.200.1' >> /home/sysadmin/.bash_history \
+    && echo 'mysql -h 192.168.214.10 -u sa -pPassword! secure_db' >> /home/sysadmin/.bash_history \
     && chown sysadmin:sysadmin /home/sysadmin/.bash_history
 
 COPY entrypoint.sh /entrypoint.sh

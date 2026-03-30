@@ -2,7 +2,7 @@
 set -e
 
 # ── SSH ────────────────────────────────────────────────────────────────────────
-echo "root:${RANGE_PASSWORD:-Password1!}" | chpasswd
+echo "root:${RANGE_PASSWORD:-Password!}" | chpasswd
 ssh-keygen -A -q
 mkdir -p /run/sshd
 /usr/sbin/sshd
