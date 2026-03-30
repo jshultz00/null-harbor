@@ -79,27 +79,22 @@ svg { display: block; }
   <div class="header" id="app-header">
     <h1>Local Cyber Range</h1>
     <span class="badge blue" id="hdr-deploy"></span>
-    <span class="badge ok"   id="hdr-core"></span>
-    <span class="badge warn" id="hdr-webattack"></span>
-    <span class="badge red"  id="hdr-full"></span>
     <span class="badge ok"   id="hdr-nodes"></span>
     <span style="margin-left:auto; font-size:.72rem; color:#8b949e">Click node for details</span>
   </div>
 
   <div class="canvas-wrap" id="canvasWrap">
     <div class="legend-bar">
-      <div class="leg-item"><div class="leg-swatch" style="background:#3d1f7a"></div>Attack/Scenario</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#7a4a0a"></div>Firewall/Router</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#1a3d7a"></div>DMZ Host</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#0a3a22"></div>Internal Server</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#1e2535"></div>SIEM</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#0d2240"></div>SOC</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#4a0a2a"></div>Database</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#5a2010"></div>Legacy (Win7)</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#1e6e3a"></div>Linux</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#1e4e96"></div>Windows</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#8c4e14"></div>Firewall/Router</div>
       <div class="leg-divider"></div>
-      <div class="leg-item"><div class="leg-swatch outline" style="border:1.5px solid #3fb950"></div>linux-container</div>
-      <div class="leg-item"><div class="leg-swatch outline" style="border:1.5px solid #58a6ff"></div>windows-container</div>
-      <div class="leg-item"><div class="leg-swatch outline" style="border:1.5px solid #d29922"></div>linux-fw/router</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#0a1830"></div>DMZ</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#081c0e"></div>Server</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#0c0a24"></div>SOC</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#1a1206"></div>Users</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#080e1e"></div>SIEM</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#1c060e"></div>Database</div>
       <div class="leg-divider"></div>
       <div class="leg-item"><div class="leg-line"></div>Transit path</div>
       <div class="leg-item"><div style="width:20px;height:0;border-top:2px solid #4a5568;flex-shrink:0"></div>Segment link</div>
@@ -109,54 +104,14 @@ svg { display: block; }
 
   <div class="sidebar">
     <div class="sidebar-tabs">
-      <button data-tab="analysis" class="active">Analysis</button>
-      <button data-tab="profiles">Profiles</button>
-      <button data-tab="resources">Resources</button>
+      <button data-tab="resources" class="active">Resources</button>
       <button data-tab="node">Node</button>
     </div>
 
-    <!-- Analysis tab: STATIC editorial content, do not generate from data -->
-    <div class="tab-panel active" id="tab-analysis">
-      <div class="card">
-        <h3>Container Migration Summary</h3>
-        <p>Migrating from VMs to containers drops estimated RAM from <strong style="color:#f85149">171 GB</strong> to <strong style="color:#d29922">~64 GB</strong> (full) or <strong style="color:#3fb950">~20 GB</strong> (core profile). Linux services shed 80&#8211;95% of their VM RAM footprint. Windows services via dockur/windows still need real RAM but save Proxmox overhead.</p>
-      </div>
-      <div class="card">
-        <h3>Architecture Changes</h3>
-        <div class="issue"><div class="dot green"></div><span><strong>pfSense VMs &#8594; nftables/Debian containers.</strong> Both firewalls replaced with ~256 MB containers. Lose the web UI but gain portability and near-zero RAM cost.</span></div>
-        <div class="issue"><div class="dot green"></div><span><strong>VyOS VM &#8594; FRRouting container.</strong> Full BGP/OSPF support at 256 MB vs 1 GB VM.</span></div>
-        <div class="issue"><div class="dot green"></div><span><strong>Splunk 16 GB VM &#8594; 4 GB Docker container</strong> (official splunk/splunk image).</span></div>
-        <div class="issue"><div class="dot green"></div><span><strong>Linux web/mail/rsyslog/workstation containers</strong> each drop to 256&#8211;512 MB from 2&#8211;4 GB VMs.</span></div>
-        <div class="issue"><div class="dot blue"></div><span><strong>Windows targets &#8594; dockur/windows</strong> (ghcr.io/dockur/windows). KVM-in-Docker &#8212; requires a Linux host with /dev/kvm.</span></div>
-        <div class="issue"><div class="dot yellow"></div><span><strong>Win7 (WKS-04)</strong> may need a manually supplied ISO for dockur/windows.</span></div>
-      </div>
-      <div class="card">
-        <h3>Remaining Gaps</h3>
-        <div class="issue"><div class="dot yellow"></div><span>No second DC for replication/FSMO attack scenarios</span></div>
-        <div class="issue"><div class="dot yellow"></div><span>SIEM has no span port / mirroring into DMZ segment</span></div>
-        <div class="issue"><div class="dot blue"></div><span>No EDR agent on workstations &#8212; add Wazuh for EDR evasion training</span></div>
-        <div class="issue"><div class="dot blue"></div><span>DB is Windows-only MSSQL &#8212; consider mcr.microsoft.com/mssql/server Linux image</span></div>
-      </div>
-    </div>
-
-    <!-- Profiles tab: buttons and detail populated by JS -->
-    <div class="tab-panel" id="tab-profiles">
-      <div class="card">
-        <h3>Docker Compose Profiles</h3>
-        <p style="margin-bottom:10px">Select a profile to highlight which services are included. Run with: <span style="font-family:monospace;color:#79c0ff;font-size:.75rem">docker compose --profile &lt;name&gt; up -d</span></p>
-        <div id="profile-btns"></div>
-      </div>
-      <div class="card" id="profile-detail">
-        <h3>All Services</h3>
-        <p>All nodes shown. Toggle a profile to highlight the active subset.</p>
-      </div>
-      <div class="card" id="profile-ram-budget"></div>
-    </div>
-
     <!-- Resources tab -->
-    <div class="tab-panel" id="tab-resources">
+    <div class="tab-panel active" id="tab-resources">
       <div class="card">
-        <h3>RAM Budget &#8212; Container vs VM</h3>
+        <h3>RAM Budget</h3>
         <div id="ram-budget-summary" style="display:flex;gap:16px;margin-bottom:10px;font-size:.75rem"></div>
         <div id="ram-bars"></div>
       </div>
@@ -175,40 +130,35 @@ svg { display: block; }
 </div>
 
 <script>
-// ─── Layout constants ─────────────────────────────────────────────────────────
-const CHAIN_Y       = 270;
-const CHAIN_START_X = 28;
-const CHAIN_NODE_W  = 130;
-const CHAIN_NODE_H  = 48;
-const CHAIN_GAP     = 16;
-const ZONE_PAD      = 10;
-const ZONE_LABEL_H  = 18;
-const NODE_GAP      = 6;
+// ─── Layout — derived from network_map.js ────────────────────────────────────
+// To add a zone: add an entry to NETWORK_MAP_DATA.layout.zones in network_map.js.
+// To change colors or dimensions: edit NETWORK_MAP_DATA.layout in network_map.js.
+const _L = NETWORK_MAP_DATA.layout;
+const _C = _L.chain;
 
-const ZONE_CONFIG = [
-  { id:'DMZ',    label:'DMZ',    color:'#101828', x:18,  y:390, cols:3, nodeW:117, nodeH:38 },
-  { id:'Server', label:'SERVER', color:'#081a10', x:530, y:60,  cols:3, nodeW:120, nodeH:38 },
-  { id:'SOC',    label:'SOC',    color:'#080f1a', x:848, y:248, cols:1, nodeW:196, nodeH:38 },
-  { id:'User',   label:'USERS',  color:'#1e1508', x:848, y:390, cols:2, nodeW:102, nodeH:38 },
-  { id:'SIEM',   label:'SIEM',   color:'#121520', x:530, y:600, cols:2, nodeW:112, nodeH:38 },
-  { id:'DB',     label:'DB',     color:'#1e0815', x:848, y:600, cols:1, nodeW:196, nodeH:38 },
-];
+const CHAIN_Y       = _C.y;
+const CHAIN_START_X = _C.startX;
+const CHAIN_NODE_W  = _C.nodeW;
+const CHAIN_NODE_H  = _C.nodeH;
+const CHAIN_GAP     = _C.gap;
+const ZONE_PAD      = _C.zonePad;
+const ZONE_LABEL_H  = _C.zoneLabelH;
+const NODE_GAP      = _C.nodeGap;
 
-const SEGMENT_TO_ZONE = {
-  'DMZ_Internal': { zoneId:'DMZ',    side:'top'    },
-  'Server':       { zoneId:'Server', side:'bottom' },
-  'SOC':          { zoneId:'SOC',    side:'left'   },
-  'User':         { zoneId:'User',   side:'left'   },
-  'SIEM':         { zoneId:'SIEM',   side:'top'    },
-  'DB':           { zoneId:'DB',     side:'left'   },
-};
+const ZONE_CONFIG = _L.zones.map(zc => ({
+  id: zc.id, label: zc.label, color: zc.bgColor,
+  x: zc.x, y: zc.y, cols: zc.cols, nodeW: zc.nodeW, nodeH: zc.nodeH,
+}));
 
-const COLOR_ATTACK   = '#3d1f7a';
-const COLOR_ROUTER   = '#0d4a5a';
-const COLOR_FIREWALL = '#7a4a0a';
-const ZONE_FILL      = { DMZ:'#1a3d7a', Server:'#0a3a22', SOC:'#0d2240', User:'#0a3a22', SIEM:'#1e2535', DB:'#4a0a2a' };
-const ZONE_FILL_WIN  = { DMZ:'#102a55', Server:'#0d2a3a', SOC:'#0d2240', User:'#102a55', SIEM:'#1e2535', DB:'#4a0a2a' };
-const TYPE_BORDER    = { linux:'#3fb950', windows:'#388bfd', fw:'#d29922' };
+const SEGMENT_TO_ZONE = Object.fromEntries(
+  _L.zones.map(zc => [zc.segment, { zoneId: zc.id, side: zc.connectorSide }])
+);
+
+const COLOR_LINUX         = _L.colors.nodeType.linux;
+const COLOR_WINDOWS       = _L.colors.nodeType.windows;
+const COLOR_FW            = _L.colors.nodeType.fw;
+const COLOR_ATTACK_ZONE   = _L.colors.attackZone;
+const TYPE_BORDER         = _L.colors.typeBorder;
 
 // ─── SVG helpers ──────────────────────────────────────────────────────────────
 const NS = 'http://www.w3.org/2000/svg';
@@ -240,14 +190,9 @@ function getChainRole(id, m) {
 }
 
 function getZoneId(m) {
-  const nets = (m.interfaces || []).map(i => i.network);
-  for (const n of nets) {
-    if (n.startsWith('DMZ')) return 'DMZ';
-    if (n === 'Server') return 'Server';
-    if (n === 'SOC') return 'SOC';
-    if (n === 'User') return 'User';
-    if (n === 'SIEM') return 'SIEM';
-    if (n === 'DB') return 'DB';
+  const nets = new Set((m.interfaces || []).map(i => i.network));
+  for (const zc of _L.zones) {
+    if (nets.has(zc.segment)) return zc.id;
   }
   return null;
 }
@@ -396,15 +341,10 @@ function computeLayout() {
 
 // ─── Node color helpers ───────────────────────────────────────────────────────
 function getNodeFill(id, classified) {
-  const { chainRole, zoneId, type } = classified[id];
-  if (chainRole === 'attack') return COLOR_ATTACK;
-  if (chainRole === 'router') return COLOR_ROUTER;
-  if (chainRole === 'fw-dmz' || chainRole === 'fw-central') return COLOR_FIREWALL;
-  if (zoneId) {
-    if (type === 'windows') return ZONE_FILL_WIN[zoneId] || ZONE_FILL[zoneId];
-    return ZONE_FILL[zoneId] || '#1e2535';
-  }
-  return '#1e2535';
+  const { type } = classified[id];
+  if (type === 'windows') return COLOR_WINDOWS;
+  if (type === 'fw')      return COLOR_FW;
+  return COLOR_LINUX;
 }
 
 // ─── Diagram rendering ────────────────────────────────────────────────────────
@@ -433,14 +373,14 @@ function renderDiagram(layout) {
   const atZone = svgEl('rect', {
     x: attackZone.x, y: attackZone.y,
     width: attackZone.w, height: attackZone.h,
-    fill: '#1a0f2e', rx: '6',
-    stroke: '#3d1f7a', 'stroke-width': '1',
+    fill: COLOR_ATTACK_ZONE.bgColor, rx: '6',
+    stroke: COLOR_ATTACK_ZONE.strokeColor, 'stroke-width': '1',
   });
   svg.appendChild(atZone);
   const atLabel = svgEl('text', {
     x: attackZone.x + 8,
     y: attackZone.y + 12,
-    class: 'zone-label', fill: '#bc8cff',
+    class: 'zone-label', fill: COLOR_ATTACK_ZONE.labelColor,
   }, 'ATTACK / SCENARIO');
   svg.appendChild(atLabel);
 
@@ -548,99 +488,9 @@ function renderDiagram(layout) {
 // ─── Header ───────────────────────────────────────────────────────────────────
 function updateHeader() {
   const meta = NETWORK_MAP_DATA._meta;
-  const profiles = NETWORK_MAP_DATA.profiles;
   const allIds = Object.keys(NETWORK_MAP_DATA.machines);
-
   document.getElementById('hdr-deploy').textContent = meta.deployment || 'docker-compose';
-
-  const coreDesc = profiles.core ? profiles.core.description : '';
-  const coreRam = coreDesc.match(/~\d+\s*GB/)?.[0] || '~20 GB';
-  document.getElementById('hdr-core').textContent = 'core: ' + coreRam;
-
-  const waDesc = profiles['web-attack'] ? profiles['web-attack'].description : '';
-  const waRam = waDesc.match(/~\d+\s*GB/)?.[0] || '~28 GB';
-  document.getElementById('hdr-webattack').textContent = 'web-attack: ' + waRam;
-
-  document.getElementById('hdr-full').textContent = 'full: ~64 GB';
   document.getElementById('hdr-nodes').textContent = allIds.length + ' nodes';
-}
-
-// ─── Profile state ────────────────────────────────────────────────────────────
-let currentProfile = 'all';
-
-function buildProfileButtons() {
-  const container = document.getElementById('profile-btns');
-  const profiles = NETWORK_MAP_DATA.profiles;
-  const allIds = Object.keys(NETWORK_MAP_DATA.machines);
-
-  // "All" button
-  const allBtn = document.createElement('button');
-  allBtn.className = 'profile-btn active';
-  allBtn.textContent = 'all';
-  allBtn.dataset.profile = 'all';
-  allBtn.addEventListener('click', () => setProfile('all'));
-  container.appendChild(allBtn);
-
-  Object.entries(profiles).forEach(([name, prof]) => {
-    if (name === '_note') return;
-    const btn = document.createElement('button');
-    btn.className = 'profile-btn';
-    btn.textContent = name;
-    btn.dataset.profile = name;
-    btn.addEventListener('click', () => setProfile(name));
-    container.appendChild(btn);
-  });
-
-  buildRamBudget();
-  updateProfileDetail('all');
-}
-
-function setProfile(name) {
-  currentProfile = name;
-  document.querySelectorAll('.profile-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.profile === name);
-  });
-  updateProfileDetail(name);
-  updateNodeOpacity();
-}
-
-function updateProfileDetail(name) {
-  const detail = document.getElementById('profile-detail');
-  const profiles = NETWORK_MAP_DATA.profiles;
-  const allIds = Object.keys(NETWORK_MAP_DATA.machines);
-
-  if (name === 'all') {
-    detail.innerHTML = '<h3>All Services</h3><p>All nodes shown. Toggle a profile to highlight the active subset.</p>';
-    return;
-  }
-
-  const prof = profiles[name];
-  if (!prof) return;
-  const ids = expandProfile(name, profiles, allIds);
-
-  let html = '<h3>' + name + '</h3><p style="margin-bottom:8px;color:#8b949e">' + prof.description + '</p>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px">';
-  ids.forEach(id => {
-    const m = NETWORK_MAP_DATA.machines[id];
-    if (!m) return;
-    const t = classifyType(m);
-    html += '<span class="type-pill ' + t + '">' + shortName(id) + '</span>';
-  });
-  html += '</div>';
-  detail.innerHTML = html;
-}
-
-function updateNodeOpacity() {
-  const profiles = NETWORK_MAP_DATA.profiles;
-  const allIds = Object.keys(NETWORK_MAP_DATA.machines);
-  const activeSet = currentProfile === 'all'
-    ? new Set(allIds)
-    : expandProfile(currentProfile, profiles, allIds);
-
-  document.querySelectorAll('.node-group').forEach(g => {
-    const id = g.dataset.id;
-    g.style.opacity = activeSet.has(id) ? '1' : '0.2';
-  });
 }
 
 // ─── Node detail ──────────────────────────────────────────────────────────────
@@ -702,20 +552,12 @@ function buildBars() {
   const profiles = NETWORK_MAP_DATA.profiles;
 
   // Compute totals
-  let containerTotal = 0;
-  allIds.forEach(id => { containerTotal += parseFloat(machines[id]['Memory (GB)']) || 0; });
-
-  const coreIds = expandProfile('core', profiles, allIds);
-  let coreTotal = 0;
-  coreIds.forEach(id => { if (machines[id]) coreTotal += parseFloat(machines[id]['Memory (GB)']) || 0; });
-
-  const vmTotal = 171;
+  let totalRam = 0;
+  allIds.forEach(id => { totalRam += parseFloat(machines[id]['Memory (GB)']) || 0; });
 
   // RAM budget summary
   document.getElementById('ram-budget-summary').innerHTML =
-    '<div style="text-align:center"><div style="color:#f85149;font-size:1rem;font-weight:600">' + vmTotal + ' GB</div><div style="color:#8b949e">VM total</div></div>' +
-    '<div style="text-align:center"><div style="color:#d29922;font-size:1rem;font-weight:600">~' + Math.round(containerTotal) + ' GB</div><div style="color:#8b949e">container full</div></div>' +
-    '<div style="text-align:center"><div style="color:#3fb950;font-size:1rem;font-weight:600">~' + Math.round(coreTotal) + ' GB</div><div style="color:#8b949e">core profile</div></div>';
+    '<div style="text-align:center"><div style="color:#79c0ff;font-size:1rem;font-weight:600">~' + Math.round(totalRam) + ' GB</div><div style="color:#8b949e">full range</div></div>';
 
   // Per-node RAM bars
   const sorted = allIds.slice().sort((a, b) => parseFloat(machines[b]['Memory (GB)']) - parseFloat(machines[a]['Memory (GB)']));
@@ -759,31 +601,6 @@ function buildBars() {
   document.getElementById('type-breakdown').innerHTML = bdHtml;
 }
 
-function buildRamBudget() {
-  const profiles = NETWORK_MAP_DATA.profiles;
-  const machines = NETWORK_MAP_DATA.machines;
-  const allIds = Object.keys(machines);
-  const el = document.getElementById('profile-ram-budget');
-
-  let html = '<h3>RAM by Profile</h3>';
-  ['core', 'web-attack', 'full'].forEach(name => {
-    const ids = expandProfile(name, profiles, allIds);
-    let total = 0;
-    ids.forEach(id => { if (machines[id]) total += parseFloat(machines[id]['Memory (GB)']) || 0; });
-    const colorHex = total <= 20 ? '#3fb950' : total <= 40 ? '#d29922' : '#f85149';
-    const fillCls  = total <= 20 ? 'green' : total <= 40 ? 'yellow' : 'red';
-    html +=
-      '<div style="margin-bottom:8px">' +
-        '<div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:2px">' +
-          '<span style="color:#c9d1d9">' + name + '</span>' +
-          '<span style="color:' + colorHex + '">' + Math.round(total) + ' GB</span>' +
-        '</div>' +
-        '<div class="res-bar"><div class="res-fill ' + fillCls + '" style="width:' + Math.min(100, Math.round(total / 64 * 100)) + '%"></div></div>' +
-      '</div>';
-  });
-  el.innerHTML = html;
-}
-
 // ─── Tab switching ────────────────────────────────────────────────────────────
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -807,7 +624,6 @@ document.querySelectorAll('.sidebar-tabs button').forEach(btn => {
 const layout = computeLayout();
 renderDiagram(layout);
 updateHeader();
-buildProfileButtons();
 buildBars();
 </script>
 </body>
