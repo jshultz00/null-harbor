@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Local Cyber Range — Network Map</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+
+  .app { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr; height: 100vh; }
+  .header { grid-column: 1/-1; background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .header h1 { font-size: 1rem; font-weight: 600; color: #f0f6fc; white-space: nowrap; }
+  .badge { font-size: 0.68rem; padding: 2px 8px; border-radius: 12px; border: 1px solid; white-space: nowrap; }
+  .badge.ok   { color: #3fb950; border-color: #3fb950; }
+  .badge.warn { color: #d29922; border-color: #d29922; }
+  .badge.blue { color: #58a6ff; border-color: #58a6ff; }
+  .badge.red  { color: #f85149; border-color: #f85149; }
+
+  .canvas-wrap { overflow: auto; background: #0d1117; }
+  svg { display: block; }
+
+  .sidebar { background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; display: flex; flex-direction: column; }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid #30363d; }
+  .sidebar-tabs button { flex: 1; padding: 9px 4px; background: none; border: none; color: #8b949e; cursor: pointer; font-size: 0.76rem; border-bottom: 2px solid transparent; transition: all .15s; }
+  .sidebar-tabs button.active { color: #f0f6fc; border-bottom-color: #388bfd; }
+  .sidebar-tabs button:hover:not(.active) { color: #c9d1d9; }
+
+  .tab-panel { display: none; padding: 12px; flex: 1; overflow-y: auto; }
+  .tab-panel.active { display: block; }
+
+  .card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 11px; margin-bottom: 10px; }
+  .card h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; color: #8b949e; margin-bottom: 7px; }
+  .card p  { font-size: 0.8rem; color: #c9d1d9; line-height: 1.5; }
+
+  .issue { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; font-size: 0.78rem; line-height: 1.4; color: #c9d1d9; }
+  .issue .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .dot.red    { background: #f85149; }
+  .dot.yellow { background: #d29922; }
+  .dot.green  { background: #3fb950; }
+  .dot.blue   { background: #388bfd; }
+  .dot.purple { background: #bc8cff; }
+
+  .profile-btn { display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; font-size: 0.75rem; cursor: pointer; margin: 2px; transition: all .15s; }
+  .profile-btn:hover { border-color: #388bfd; color: #58a6ff; }
+  .profile-btn.active { background: #1c3555; border-color: #388bfd; color: #58a6ff; }
+
+  #detail h2 { font-size: 0.92rem; color: #f0f6fc; margin-bottom: 2px; }
+  #detail .os { font-size: 0.76rem; color: #8b949e; margin-bottom: 10px; }
+  .detail-row { display: flex; gap: 6px; margin-bottom: 3px; font-size: 0.76rem; }
+  .detail-label { color: #8b949e; min-width: 74px; }
+  .detail-val   { color: #c9d1d9; }
+  .iface-item   { background: #0d1117; border-radius: 4px; padding: 4px 8px; margin-bottom: 3px; font-size: 0.73rem; color: #8b949e; }
+  .iface-item span { color: #58a6ff; }
+  .deploy-box { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 8px; margin-top: 8px; }
+  .deploy-box .dkey { font-size: 0.7rem; color: #8b949e; margin-bottom: 1px; }
+  .deploy-box .dval { font-size: 0.76rem; color: #79c0ff; font-family: monospace; word-break: break-all; }
+  .deploy-box .dnote { font-size: 0.73rem; color: #d29922; margin-top: 6px; line-height: 1.4; }
+
+  .res-bar { background: #21262d; border-radius: 4px; height: 7px; overflow: hidden; margin-top: 3px; }
+  .res-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+  .res-fill.green  { background: #3fb950; }
+  .res-fill.yellow { background: #d29922; }
+  .res-fill.red    { background: #f85149; }
+
+  .type-pill { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+  .type-pill.linux   { background: #1a3a2a; color: #3fb950; border: 1px solid #3fb950; }
+  .type-pill.windows { background: #1a2a3a; color: #58a6ff; border: 1px solid #58a6ff; }
+  .type-pill.fw      { background: #3a2a1a; color: #d29922; border: 1px solid #d29922; }
+
+  .node-group { cursor: pointer; }
+  .node-group:hover .node-rect { filter: brightness(1.4); }
+  .node-group.selected .node-rect { stroke-width: 2.5 !important; stroke: #f0f6fc !important; }
+  .node-label { font-family: 'Segoe UI', sans-serif; font-size: 8.5px; fill: #e6edf3; pointer-events: none; font-weight: 500; }
+  .node-sub   { font-family: 'Segoe UI', sans-serif; font-size: 7.5px; fill: #8b949e; pointer-events: none; }
+  .zone-label { font-family: 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; opacity: .4; pointer-events: none; }
+  .edge { stroke-width: 1.2; fill: none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <h1>Local Cyber Range</h1>
+    <span class="badge blue">Container-based</span>
+    <span class="badge ok">core ~20 GB RAM</span>
+    <span class="badge warn">web-attack ~28 GB RAM</span>
+    <span class="badge red">full ~64 GB RAM</span>
+    <span class="badge ok">24 nodes · 14 segments</span>
+    <span style="margin-left:auto; font-size:.72rem; color:#8b949e">Click node for details</span>
+  </div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <svg id="diagram" width="1100" height="910" viewBox="0 0 1100 910"></svg>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="active" onclick="switchTab('analysis',this)">Analysis</button>
+      <button onclick="switchTab('profiles',this)">Profiles</button>
+      <button onclick="switchTab('resources',this)">Resources</button>
+      <button onclick="switchTab('node',this)">Node</button>
+    </div>
+
+    <!-- Analysis -->
+    <div class="tab-panel active" id="tab-analysis">
+      <div class="card">
+        <h3>Container Migration Summary</h3>
+        <p>Migrating from VMs to containers drops estimated RAM from <strong style="color:#f85149">171 GB</strong> to <strong style="color:#d29922">~64 GB</strong> (full) or <strong style="color:#3fb950">~20 GB</strong> (core profile). Linux services shed 80–95% of their VM RAM footprint. Windows services via dockur/windows still need real RAM but save Proxmox overhead.</p>
+      </div>
+      <div class="card">
+        <h3>Architecture Changes</h3>
+        <div class="issue"><div class="dot green"></div><span><strong>pfSense VMs → nftables/Debian containers.</strong> Both firewalls replaced with ~256 MB containers. Lose the web UI but gain portability and near-zero RAM cost.</span></div>
+        <div class="issue"><div class="dot green"></div><span><strong>VyOS VM → FRRouting container.</strong> Full BGP/OSPF support at 256 MB vs 1 GB VM.</span></div>
+        <div class="issue"><div class="dot green"></div><span><strong>Splunk 16 GB VM → 4 GB Docker container</strong> (official splunk/splunk image).</span></div>
+        <div class="issue"><div class="dot green"></div><span><strong>Security Onion 32 GB VM → 8 GB Docker mode.</strong> SO ships its own container stack — use standalone install mode.</span></div>
+        <div class="issue"><div class="dot green"></div><span><strong>Linux web/mail/rsyslog/workstation containers</strong> each drop to 256–512 MB from 2–4 GB VMs.</span></div>
+        <div class="issue"><div class="dot blue"></div><span><strong>Windows targets → dockur/windows</strong> (ghcr.io/dockur/windows). KVM-in-Docker — requires a Linux host with /dev/kvm. RAM savings modest but portability is the win.</span></div>
+        <div class="issue"><div class="dot yellow"></div><span><strong>Win7 (WKS-01)</strong> may need a manually supplied ISO for dockur/windows. Test before relying on it for EternalBlue scenarios.</span></div>
+      </div>
+      <div class="card">
+        <h3>Fixed Issues from v2</h3>
+        <div class="issue"><div class="dot green"></div><span>HN-SRV-CA renamed and properly described as an <strong>AD CS Certificate Authority</strong> — enables ESC1–ESC8 scenarios</span></div>
+        <div class="issue"><div class="dot green"></div><span>QRadar reference removed from Rsyslog description</span></div>
+        <div class="issue"><div class="dot green"></div><span>Docker Compose profiles added (core / web-attack / full) so you can run within 32 GB</span></div>
+      </div>
+      <div class="card">
+        <h3>Remaining Gaps</h3>
+        <div class="issue"><div class="dot yellow"></div><span>No second DC for replication/FSMO attack scenarios</span></div>
+        <div class="issue"><div class="dot yellow"></div><span>SIEM has no span port / mirroring into DMZ segment</span></div>
+        <div class="issue"><div class="dot blue"></div><span>No EDR agent on workstations — add Wazuh for EDR evasion training</span></div>
+        <div class="issue"><div class="dot blue"></div><span>DB is Windows-only MSSQL — consider the mcr.microsoft.com/mssql/server Linux image to drop KVM requirement for that service</span></div>
+      </div>
+    </div>
+
+    <!-- Profiles -->
+    <div class="tab-panel" id="tab-profiles">
+      <div class="card">
+        <h3>Docker Compose Profiles</h3>
+        <p style="margin-bottom:10px">Select a profile to highlight which services are included. Run with: <span style="font-family:monospace;color:#79c0ff;font-size:.75rem">docker compose --profile &lt;name&gt; up -d</span></p>
+        <div>
+          <span class="profile-btn active" onclick="setProfile('all',this)">all (diagram)</span>
+          <span class="profile-btn" onclick="setProfile('core',this)">core</span>
+          <span class="profile-btn" onclick="setProfile('web-attack',this)">web-attack</span>
+          <span class="profile-btn" onclick="setProfile('full',this)">full</span>
+        </div>
+      </div>
+      <div class="card" id="profile-detail">
+        <h3>All Services</h3>
+        <p>All 24 nodes shown. Toggle a profile to highlight the subset active in that scenario.</p>
+      </div>
+      <div class="card">
+        <h3>Profile RAM Budgets</h3>
+        <div class="issue"><div class="dot green"></div><span><strong>core</strong> — SCN, both FWs, DC01, WKS-02, SecOnion, Rsyslog, SOC-WKS. <strong>~20 GB</strong>. Covers lateral movement, AD attacks, credential dumping.</span></div>
+        <div class="issue"><div class="dot yellow"></div><span><strong>web-attack</strong> — core + border router, Web01/Web03, DMZ DNS, mail relay, Exchange, DB. <strong>~28 GB</strong>. Adds initial access via web exploit + phishing chain.</span></div>
+        <div class="issue"><div class="dot red"></div><span><strong>full</strong> — all 24 nodes. <strong>~64 GB</strong>. Requires cloud or upgraded hardware.</span></div>
+      </div>
+    </div>
+
+    <!-- Resources -->
+    <div class="tab-panel" id="tab-resources">
+      <div class="card">
+        <h3>RAM Budget — Container vs VM</h3>
+        <div style="display:flex;gap:16px;margin-bottom:10px;font-size:.75rem">
+          <span>VM total: <strong style="color:#f85149">171 GB</strong></span>
+          <span>Container total: <strong style="color:#d29922">~64 GB</strong></span>
+          <span>Core profile: <strong style="color:#3fb950">~20 GB</strong></span>
+        </div>
+        <div id="ram-bars"></div>
+      </div>
+      <div class="card">
+        <h3>By Type</h3>
+        <div id="type-breakdown"></div>
+      </div>
+    </div>
+
+    <!-- Node Detail -->
+    <div class="tab-panel" id="tab-node">
+      <div id="detail-placeholder" style="color:#8b949e;font-size:.8rem;padding:20px 14px">Click any node on the diagram to see its details here.</div>
+      <div id="detail" style="display:none;padding:14px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Data
+// ─────────────────────────────────────────────────────────────────────────────
+const machines = {
+  "HN-SCN":              { os:"Kali (rolling)",        type:"linux",   cpu:4, ram:4,   hdd:20,  profiles:["core","web-attack","full"], img:"kalilinux/kali-rolling",           desc:"Scenario engine + fake internet (Metasploit, CoreDNS, Caddy, SMTP, traffic gen). Reduced from 12 GB VM.",  ifaces:[{n:"Scenario",ip:"9.53.99.47/24"},{n:"Main",ip:"17.93.8.4/29"},{n:"C2",ip:"172.16.0.1/24"}] },
+  "HN-BRDR-Router":      { os:"Linux (FRRouting)",     type:"fw",      cpu:1, ram:0.25,hdd:1,   profiles:["web-attack","full"],        img:"frrouting/frr:latest",             desc:"Border router. Replaces VyOS VM. 256 MB footprint.",  ifaces:[{n:"Router-DMZ",ip:"130.2.2.1/24"},{n:"Main",ip:"17.93.8.1/29"}] },
+  "HN-FW-DMZ":           { os:"Linux (nftables)",      type:"fw",      cpu:1, ram:0.25,hdd:1,   profiles:["core","web-attack","full"], img:"debian:bookworm-slim",             desc:"DMZ perimeter firewall. Replaces pfSense VM. nftables rules in ./config/fw-dmz/nftables.conf.",  ifaces:[{n:"Management",ip:"172.31.202.140/24"},{n:"Firewall",ip:"192.168.254.242/30"},{n:"DMZ_Internal",ip:"172.16.100.254/24"},{n:"Router-DMZ",ip:"130.2.2.2/24"}] },
+  "HN-FW-Central":       { os:"Linux (nftables)",      type:"fw",      cpu:1, ram:0.25,hdd:1,   profiles:["core","web-attack","full"], img:"debian:bookworm-slim",             desc:"Central firewall for all internal segments. Replaces pfSense VM.",  ifaces:[{n:"Management",ip:"172.31.202.139/24"},{n:"Firewall",ip:"192.168.254.241/30"},{n:"Server",ip:"192.168.200.254/24"},{n:"User",ip:"192.168.100.254/24"},{n:"SOC",ip:"192.168.110.254/24"},{n:"SIEM",ip:"192.168.66.254/24"},{n:"DB",ip:"192.168.214.254/24"}] },
+  "HN-DMZ-Web01":        { os:"Ubuntu 22.04",          type:"linux",   cpu:1, ram:0.5, hdd:2,   profiles:["web-attack","full"],        img:"ubuntu:22.04",                     desc:"Apache web server. Lifestyle/magazine site. Vulnerable web app surface.",  ifaces:[{n:"C2",ip:"172.16.0.40/24"},{n:"DMZ_Internal",ip:"172.16.100.10/24"},{n:"DMZ_External",ip:"130.2.2.4/24"}] },
+  "HN-DMZ-Web02":        { os:"Ubuntu 22.04",          type:"linux",   cpu:1, ram:0.5, hdd:2,   profiles:["full"],                    img:"ubuntu:22.04",                     desc:"Apache web server. Coffee shop site. Full profile only.",  ifaces:[{n:"C2",ip:"172.16.0.41/24"},{n:"DMZ_Internal",ip:"172.16.100.11/24"},{n:"DMZ_External",ip:"130.2.2.8/24"}] },
+  "HN-DMZ-Web03":        { os:"Windows Server 2019",   type:"windows", cpu:2, ram:4,   hdd:40,  profiles:["web-attack","full"],        img:"ghcr.io/dockur/windows (2019)",    desc:"IIS web server. Corporate services site. Primary Windows web target — WebShell, lateral movement pivot.",  ifaces:[{n:"C2",ip:"172.16.0.42/24"},{n:"DMZ_Internal",ip:"172.16.100.12/24"},{n:"DMZ_External",ip:"130.2.2.12/24"}] },
+  "HN-DMZ-Web04":        { os:"Windows Server 2019",   type:"windows", cpu:2, ram:4,   hdd:40,  profiles:["full"],                    img:"ghcr.io/dockur/windows (2019)",    desc:"IIS web server. Drone photography site. Mass defacement scenarios. Full profile only.",  ifaces:[{n:"C2",ip:"172.16.0.43/24"},{n:"DMZ_Internal",ip:"172.16.100.13/24"},{n:"DMZ_External",ip:"130.2.2.16/24"}] },
+  "HN-DMZ-DNS":          { os:"Windows Server 2016",   type:"windows", cpu:1, ram:2,   hdd:20,  profiles:["web-attack","full"],        img:"ghcr.io/dockur/windows (2016)",    desc:"DMZ DNS server. DNS tunneling and C2-over-DNS pivot scenarios.",  ifaces:[{n:"C2",ip:"172.16.0.44/24"},{n:"DMZ_Internal",ip:"172.16.100.6/24"},{n:"DMZ_External",ip:"130.2.2.6/24"}] },
+  "HN-DMZ-Mail-Relay":   { os:"Ubuntu 22.04",          type:"linux",   cpu:1, ram:0.25,hdd:2,   profiles:["web-attack","full"],        img:"boky/postfix",                     desc:"Postfix mail relay. Phishing delivery and SMTP exfiltration. 256 MB vs 2 GB VM.",  ifaces:[{n:"C2",ip:"172.16.0.45/24"},{n:"DMZ_Internal",ip:"172.16.100.8/24"},{n:"DMZ_External",ip:"130.2.2.20/24"}] },
+  "HN-SRV-DC01":         { os:"Windows Server 2016",   type:"windows", cpu:2, ram:4,   hdd:30,  profiles:["core","web-attack","full"], img:"ghcr.io/dockur/windows (2016)",    desc:"Primary AD DC for holey.net. Kerberos, AD DS. DCSync, Golden Ticket, pass-the-hash target. Always run.",  ifaces:[{n:"C2",ip:"172.16.0.70/24"},{n:"Server",ip:"192.168.200.1/24"}] },
+  "HN-SRV-DNS":          { os:"Windows Server 2016",   type:"windows", cpu:1, ram:2,   hdd:20,  profiles:["full"],                    img:"ghcr.io/dockur/windows (2016)",    desc:"Internal DNS server. Can be consolidated into DC01 unless specifically testing DNS attacks.",  ifaces:[{n:"C2",ip:"172.16.0.71/24"},{n:"Server",ip:"192.168.200.100/24"}] },
+  "HN-SRV-Exchange":     { os:"Windows Server 2016",   type:"windows", cpu:2, ram:6,   hdd:60,  profiles:["web-attack","full"],        img:"ghcr.io/dockur/windows (2016)",    desc:"Exchange mail server. Phishing, email exfil, credential harvesting. Biggest Windows RAM consumer.",  ifaces:[{n:"C2",ip:"172.16.0.72/24"},{n:"Server",ip:"192.168.200.10/24"}] },
+  "HN-SRV-CA":           { os:"Windows Server 2016",   type:"windows", cpu:1, ram:2,   hdd:30,  profiles:["full"],                    img:"ghcr.io/dockur/windows (2016)",    desc:"AD Certificate Services (AD CS). Intentionally misconfigured templates. ESC1–ESC8 attack scenarios. Fixed from v2 mislabel.",  ifaces:[{n:"C2",ip:"172.16.0.73/24"},{n:"Server",ip:"192.168.200.12/24"}] },
+  "HN-SRV-Files":        { os:"Windows Server 2016",   type:"windows", cpu:1, ram:2,   hdd:40,  profiles:["full"],                    img:"ghcr.io/dockur/windows (2016)",    desc:"File server with SMB shares. Ransomware simulation (mass encryption) and data staging/exfil.",  ifaces:[{n:"C2",ip:"172.16.0.74/24"},{n:"Server",ip:"192.168.200.6/24"}] },
+  "HN-DB-DB01":          { os:"Windows Server 2016",   type:"windows", cpu:2, ram:4,   hdd:40,  profiles:["web-attack","full"],        img:"ghcr.io/dockur/windows (2016)",    desc:"MSSQL host. SQL injection, xp_cmdshell, data exfil. Consider Linux MSSQL image to drop KVM requirement.",  ifaces:[{n:"C2",ip:"172.16.0.30/24"},{n:"DB",ip:"192.168.214.10/24"}] },
+  "HN-USER-WKS-01":      { os:"Windows 7 SP1",         type:"windows", cpu:1, ram:2,   hdd:20,  profiles:["full"],                    img:"ghcr.io/dockur/windows (win7)",    desc:"⚠ Win7. EternalBlue target. May need manually provided ISO for dockur/windows — test carefully.",  ifaces:[{n:"C2",ip:"172.16.0.100/24"},{n:"User",ip:"192.168.100.10/24"}] },
+  "HN-USER-WKS-02":      { os:"Windows 10",            type:"windows", cpu:2, ram:4,   hdd:25,  profiles:["core","web-attack","full"], img:"ghcr.io/dockur/windows (win10)",   desc:"Win10 corporate endpoint. Phishing payload, credential harvesting, lateral movement.",  ifaces:[{n:"C2",ip:"172.16.0.101/24"},{n:"User",ip:"192.168.100.11/24"}] },
+  "HN-USER-WKS-03":      { os:"Windows 11",            type:"windows", cpu:2, ram:4,   hdd:25,  profiles:["full"],                    img:"ghcr.io/dockur/windows (win11)",   desc:"Win11 endpoint. Tests SmartScreen, Credential Guard, AMSI. Needs swtpm for TPM emulation.",  ifaces:[{n:"C2",ip:"172.16.0.102/24"},{n:"User",ip:"192.168.100.12/24"}] },
+  "HN-USER-WKS-04":      { os:"Ubuntu 22.04",          type:"linux",   cpu:1, ram:0.5, hdd:5,   profiles:["full"],                    img:"ubuntu:22.04",                     desc:"Linux developer workstation. LD_PRELOAD rootkit, SSH key harvesting. 512 MB vs 4 GB VM.",  ifaces:[{n:"C2",ip:"172.16.0.103/24"},{n:"User",ip:"192.168.100.13/24"}] },
+  "HN-SIEM-SecOnion":    { os:"RHEL (SO Docker mode)", type:"linux",   cpu:4, ram:8,   hdd:100, profiles:["core","web-attack","full"], img:"securityonionsolutions/so-manager", desc:"Security Onion standalone. Suricata IDS, Zeek, log mgmt. 8 GB container vs 32 GB VM.",  ifaces:[{n:"SIEM",ip:"192.168.66.26/24"}] },
+  "HN-SIEM-Splunk":      { os:"Ubuntu 22.04",          type:"linux",   cpu:2, ram:4,   hdd:50,  profiles:["web-attack","full"],        img:"splunk/splunk:latest",              desc:"Splunk Enterprise (free, <500 MB/day). 4 GB container vs 16 GB VM.",  ifaces:[{n:"SIEM",ip:"192.168.66.50/24"}] },
+  "HN-SIEM-Rsyslog":     { os:"Alpine",                type:"linux",   cpu:1, ram:0.25,hdd:10,  profiles:["core","web-attack","full"], img:"rsyslog/syslog_appliance_alpine",  desc:"Syslog aggregator. Forwards to Splunk. 256 MB vs 4 GB VM.",  ifaces:[{n:"SIEM",ip:"192.168.66.150/24"}] },
+  "HN-SOC-WKS-01":       { os:"Windows 10",            type:"windows", cpu:2, ram:4,   hdd:25,  profiles:["core","web-attack","full"], img:"ghcr.io/dockur/windows (win10)",   desc:"SOC analyst workstation. Zenmap, Ghidra, SIEM browser shortcuts. Exposed via dockur noVNC (port 8006).",  ifaces:[{n:"Management",ip:"172.31.202.11/24"},{n:"C2",ip:"172.16.0.80/24"},{n:"SOC",ip:"192.168.110.11/24"}] },
+};
+
+// Node layout
+const nodes = [
+  { id:"HN-SCN",            x:28,  y:185, w:128, h:48, color:"#3d1f7a", zone:"attack" },
+  { id:"HN-BRDR-Router",    x:196, y:185, w:138, h:48, color:"#0d4a5a", zone:"transit" },
+  { id:"HN-FW-DMZ",         x:376, y:185, w:138, h:48, color:"#7a4a0a", zone:"fw" },
+  { id:"HN-FW-Central",     x:695, y:185, w:148, h:48, color:"#7a4a0a", zone:"fw" },
+  { id:"HN-DMZ-Web01",      x:275, y:330, w:118, h:44, color:"#1a3d7a", zone:"dmz" },
+  { id:"HN-DMZ-Web02",      x:413, y:330, w:118, h:44, color:"#1a3d7a", zone:"dmz" },
+  { id:"HN-DMZ-Web03",      x:275, y:390, w:118, h:44, color:"#102a55", zone:"dmz" },
+  { id:"HN-DMZ-Web04",      x:413, y:390, w:118, h:44, color:"#102a55", zone:"dmz" },
+  { id:"HN-DMZ-DNS",        x:551, y:330, w:118, h:44, color:"#1a3d7a", zone:"dmz" },
+  { id:"HN-DMZ-Mail-Relay", x:551, y:390, w:118, h:44, color:"#1a3d7a", zone:"dmz" },
+  { id:"HN-FW-Central",     x:695, y:185, w:148, h:48, color:"#7a4a0a", zone:"fw" },
+  { id:"HN-SRV-DC01",       x:560, y:535, w:112, h:38, color:"#0a3a22", zone:"server" },
+  { id:"HN-SRV-DNS",        x:686, y:535, w:112, h:38, color:"#0a3a22", zone:"server" },
+  { id:"HN-SRV-Exchange",   x:812, y:535, w:120, h:38, color:"#0a3a22", zone:"server" },
+  { id:"HN-SRV-CA",         x:560, y:586, w:112, h:38, color:"#5a3010", zone:"server" },
+  { id:"HN-SRV-Files",      x:686, y:586, w:112, h:38, color:"#0a3a22", zone:"server" },
+  { id:"HN-DB-DB01",        x:952, y:535, w:120, h:38, color:"#4a0a2a", zone:"db" },
+  { id:"HN-USER-WKS-01",    x:560, y:665, w:108, h:38, color:"#5a2010", zone:"user" },
+  { id:"HN-USER-WKS-02",    x:682, y:665, w:108, h:38, color:"#102a55", zone:"user" },
+  { id:"HN-USER-WKS-03",    x:804, y:665, w:108, h:38, color:"#102a55", zone:"user" },
+  { id:"HN-USER-WKS-04",    x:926, y:665, w:108, h:38, color:"#0a3a22", zone:"user" },
+  { id:"HN-SIEM-SecOnion",  x:560, y:760, w:142, h:38, color:"#1e2535", zone:"siem" },
+  { id:"HN-SIEM-Splunk",    x:716, y:760, w:112, h:38, color:"#1e2535", zone:"siem" },
+  { id:"HN-SIEM-Rsyslog",   x:842, y:760, w:112, h:38, color:"#1e2535", zone:"siem" },
+  { id:"HN-SOC-WKS-01",     x:685, y:850, w:128, h:38, color:"#0d2240", zone:"soc" },
+];
+
+// Remove duplicate HN-FW-Central entry
+const uniqueNodes = [];
+const seen = new Set();
+for (const n of nodes) {
+  if (!seen.has(n.id)) { seen.add(n.id); uniqueNodes.push(n); }
+}
+
+function shortName(id) {
+  return id.replace("HN-","").replace("-pfSense","").replace("SecurityOnion","SecOnion")
+           .replace("BRDR-Router","BRDR-Rtr").replace("DMZ-Mail-Relay","DMZ-Mail");
+}
+
+const zones = [
+  { label:"EXTERNAL / ATTACK",  x:16,  y:148, w:340, h:110, color:"#1e1030" },
+  { label:"DMZ",                x:252, y:288, w:440, h:170, color:"#101828" },
+  { label:"SERVER",             x:540, y:505, w:415, h:150, color:"#081a10" },
+  { label:"USERS",              x:540, y:635, w:520, h:88,  color:"#1e1508" },
+  { label:"SIEM",               x:540, y:730, w:440, h:78,  color:"#121520" },
+  { label:"SOC",                x:660, y:825, w:198, h:68,  color:"#080f1a" },
+  { label:"DB",                 x:932, y:505, w:158, h:88,  color:"#1e0815" },
+];
+
+const edges = [
+  ["HN-SCN","HN-BRDR-Router"],
+  ["HN-BRDR-Router","HN-FW-DMZ"],
+  ["HN-FW-DMZ","HN-DMZ-Web01"],
+  ["HN-FW-DMZ","HN-DMZ-Web02"],
+  ["HN-FW-DMZ","HN-DMZ-Web03"],
+  ["HN-FW-DMZ","HN-DMZ-Web04"],
+  ["HN-FW-DMZ","HN-DMZ-DNS"],
+  ["HN-FW-DMZ","HN-DMZ-Mail-Relay"],
+  ["HN-FW-DMZ","HN-FW-Central"],
+  ["HN-FW-Central","HN-SRV-DC01"],
+  ["HN-FW-Central","HN-SRV-DNS"],
+  ["HN-FW-Central","HN-SRV-Exchange"],
+  ["HN-FW-Central","HN-SRV-CA"],
+  ["HN-FW-Central","HN-SRV-Files"],
+  ["HN-FW-Central","HN-DB-DB01"],
+  ["HN-FW-Central","HN-USER-WKS-01"],
+  ["HN-FW-Central","HN-USER-WKS-02"],
+  ["HN-FW-Central","HN-USER-WKS-03"],
+  ["HN-FW-Central","HN-USER-WKS-04"],
+  ["HN-FW-Central","HN-SIEM-SecOnion"],
+  ["HN-FW-Central","HN-SIEM-Splunk"],
+  ["HN-FW-Central","HN-SIEM-Rsyslog"],
+  ["HN-FW-Central","HN-SOC-WKS-01"],
+];
+
+const c2targets = ["HN-DMZ-Web01","HN-DMZ-Web02","HN-DMZ-Web03","HN-DMZ-Web04","HN-DMZ-DNS","HN-DMZ-Mail-Relay",
+  "HN-SRV-DC01","HN-SRV-DNS","HN-SRV-Exchange","HN-SRV-CA","HN-SRV-Files","HN-DB-DB01",
+  "HN-USER-WKS-01","HN-USER-WKS-02","HN-USER-WKS-03","HN-USER-WKS-04","HN-SOC-WKS-01"];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SVG Render
+// ─────────────────────────────────────────────────────────────────────────────
+const svg = document.getElementById("diagram");
+const ns = "http://www.w3.org/2000/svg";
+function el(tag, attrs={}, text="") {
+  const e = document.createElementNS(ns, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k,v);
+  if (text) e.textContent = text;
+  return e;
+}
+function nodeCenter(id) {
+  const n = uniqueNodes.find(n=>n.id===id);
+  return n ? {x:n.x+n.w/2, y:n.y+n.h/2} : null;
+}
+
+// defs
+const defs = el("defs");
+const mkr = el("marker",{id:"arr",markerWidth:"5",markerHeight:"5",refX:"4",refY:"2.5",orient:"auto"});
+mkr.appendChild(el("polygon",{points:"0 0,5 2.5,0 5",fill:"#30363d"}));
+const mkrC2 = el("marker",{id:"arrC2",markerWidth:"5",markerHeight:"5",refX:"4",refY:"2.5",orient:"auto"});
+mkrC2.appendChild(el("polygon",{points:"0 0,5 2.5,0 5",fill:"#6e40c9"}));
+defs.appendChild(mkr); defs.appendChild(mkrC2);
+svg.appendChild(defs);
+
+// legend
+const leg = el("g",{transform:"translate(14,52)"});
+const legendItems = [
+  {color:"#3d1f7a",label:"Attack/Scenario"},
+  {color:"#7a4a0a",label:"Firewall/Router"},
+  {color:"#1a3d7a",label:"DMZ Host"},
+  {color:"#0a3a22",label:"Internal Server"},
+  {color:"#1e2535",label:"SIEM"},
+  {color:"#0d2240",label:"SOC"},
+  {color:"#4a0a2a",label:"Database"},
+  {color:"#5a2010",label:"Legacy (Win7)"},
+];
+legendItems.forEach((item,i) => {
+  const lx = (i%5)*192;
+  const ly = Math.floor(i/5)*16;
+  leg.appendChild(el("rect",{x:lx,y:ly,width:9,height:9,rx:"2",fill:item.color}));
+  const t = el("text",{x:lx+13,y:ly+8,"font-size":"8","font-family":"Segoe UI,sans-serif",fill:"#8b949e"});
+  t.textContent = item.label;
+  leg.appendChild(t);
+});
+// type pills legend
+const typeLeg = el("g",{transform:"translate(0,20)"});
+[{label:"linux-container",color:"#3fb950"},{label:"windows-container",color:"#58a6ff"},{label:"linux-fw/router",color:"#d29922"}].forEach((t,i) => {
+  const tx = i*185;
+  const r = el("rect",{x:tx,y:0,width:8,height:8,rx:"1",fill:"none",stroke:t.color,"stroke-width":"1.5"});
+  const txt = el("text",{x:tx+12,y:7,"font-size":"8","font-family":"Segoe UI,sans-serif",fill:"#8b949e"});
+  txt.textContent = t.label;
+  typeLeg.appendChild(r); typeLeg.appendChild(txt);
+});
+leg.appendChild(typeLeg);
+// C2 legend
+const c2legG = el("g",{transform:"translate(620,2)"});
+c2legG.appendChild(el("line",{x1:0,y1:4,x2:20,y2:4,stroke:"#6e40c9","stroke-width":"1.2","stroke-dasharray":"3,3"}));
+const c2t = el("text",{x:24,y:8,"font-size":"8","font-family":"Segoe UI,sans-serif",fill:"#8b949e"});
+c2t.textContent = "C2 overlay (172.16.0.0/24)";
+c2legG.appendChild(c2t);
+leg.appendChild(c2legG);
+svg.insertBefore(leg, svg.firstChild);
+
+// zone backgrounds
+for (const z of zones) {
+  svg.appendChild(el("rect",{x:z.x,y:z.y,width:z.w,height:z.h,rx:"7",fill:z.color,stroke:"#21262d","stroke-width":"1",opacity:"0.7"}));
+  const lbl = el("text",{x:z.x+8,y:z.y+13,class:"zone-label",fill:"#e6edf3"});
+  lbl.textContent = z.label;
+  svg.appendChild(lbl);
+}
+
+// C2 edges (draw first, behind everything)
+for (const t of c2targets) {
+  const ca = nodeCenter("HN-SCN"), cb = nodeCenter(t);
+  if (!ca||!cb) continue;
+  svg.appendChild(el("line",{x1:ca.x,y1:ca.y,x2:cb.x,y2:cb.y,stroke:"#6e40c9","stroke-width":"0.7","stroke-dasharray":"3,4","marker-end":"url(#arrC2)",class:"edge",opacity:"0.2"}));
+}
+
+// regular edges
+for (const [a,b] of edges) {
+  const ca = nodeCenter(a), cb = nodeCenter(b);
+  if (!ca||!cb) continue;
+  svg.appendChild(el("line",{x1:ca.x,y1:ca.y,x2:cb.x,y2:cb.y,stroke:"#30363d","stroke-width":"1.4","marker-end":"url(#arr)",class:"edge",opacity:"0.6"}));
+}
+
+// type border colors
+const typeBorder = {linux:"#3fb950", windows:"#388bfd", fw:"#d29922"};
+
+// nodes
+for (const n of uniqueNodes) {
+  const m = machines[n.id];
+  const g = el("g",{class:"node-group","data-id":n.id});
+  const border = m ? typeBorder[m.type] : "#30363d";
+  const rect = el("rect",{x:n.x,y:n.y,width:n.w,height:n.h,rx:"5",fill:n.color,stroke:border,"stroke-width":"1.2","class":"node-rect"});
+  if (n.id === "HN-SRV-CA") rect.setAttribute("stroke","#d29922");
+  const lbl = el("text",{x:n.x+n.w/2,y:n.y+n.h/2-5,"text-anchor":"middle",class:"node-label"});
+  lbl.textContent = shortName(n.id);
+  const sub = el("text",{x:n.x+n.w/2,y:n.y+n.h/2+8,"text-anchor":"middle",class:"node-sub"});
+  sub.textContent = m ? `${m.ram<1 ? Math.round(m.ram*1024)+"MB" : m.ram+"GB"} · ${m.cpu}c` : "";
+  g.appendChild(rect); g.appendChild(lbl); g.appendChild(sub);
+  g.addEventListener("click", ()=>selectNode(n.id));
+  svg.appendChild(g);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Profile highlighting
+// ─────────────────────────────────────────────────────────────────────────────
+let currentProfile = "all";
+const profileDetails = {
+  all:        { title:"All Services", ram:"~64 GB", desc:"All 24 nodes shown. Toggle a profile to highlight the active subset." },
+  core:       { title:"core profile", ram:"~20 GB", desc:"SCN, FW-DMZ, FW-Central, DC01, WKS-02, SecOnion, Rsyslog, SOC-WKS-01. Covers lateral movement, AD attacks, credential dumping on a single domain." },
+  "web-attack":{ title:"web-attack profile", ram:"~28 GB", desc:"Adds border router, Web01/Web03, DMZ DNS, mail relay, Exchange, DB01. Covers the full phishing + web exploit → pivot → exfil kill chain." },
+  full:       { title:"full profile", ram:"~64 GB", desc:"All 24 nodes. Requires ~64 GB — suitable for a cloud VM or hardware upgrade beyond the Beelink." },
+};
+
+function setProfile(name, btn) {
+  currentProfile = name;
+  document.querySelectorAll(".profile-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  const pd = profileDetails[name] || profileDetails.all;
+  document.getElementById("profile-detail").innerHTML = `<h3>${pd.title} — ${pd.ram}</h3><p style="margin-top:6px">${pd.desc}</p>`;
+  updateNodeOpacity();
+}
+
+function updateNodeOpacity() {
+  document.querySelectorAll(".node-group").forEach(g => {
+    const id = g.getAttribute("data-id");
+    const m = machines[id];
+    if (!m || currentProfile === "all") {
+      g.style.opacity = "1";
+      return;
+    }
+    const inProfile = m.profiles.includes(currentProfile);
+    g.style.opacity = inProfile ? "1" : "0.2";
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Node detail
+// ─────────────────────────────────────────────────────────────────────────────
+function selectNode(id) {
+  document.querySelectorAll(".node-group").forEach(g=>g.classList.remove("selected"));
+  const g = document.querySelector(`[data-id="${id}"]`);
+  if (g) g.classList.add("selected");
+  const m = machines[id];
+  if (!m) return;
+  document.getElementById("detail-placeholder").style.display = "none";
+  const d = document.getElementById("detail");
+  d.style.display = "block";
+  const typeLabel = {linux:"linux-container",windows:"windows-container",fw:"linux-fw/router"};
+  const typeCls   = {linux:"linux",windows:"windows",fw:"fw"};
+  const ramStr = m.ram < 1 ? Math.round(m.ram*1024)+" MB" : m.ram+" GB";
+  d.innerHTML = `
+    <h2>${id} <span class="type-pill ${typeCls[m.type]}">${typeLabel[m.type]}</span></h2>
+    <div class="os">${m.os}</div>
+    <div class="detail-row"><span class="detail-label">CPU</span><span class="detail-val">${m.cpu} vCPU</span></div>
+    <div class="detail-row"><span class="detail-label">RAM</span><span class="detail-val">${ramStr}</span></div>
+    <div class="detail-row"><span class="detail-label">Storage</span><span class="detail-val">${m.hdd} GB</span></div>
+    <div class="detail-row"><span class="detail-label">Profiles</span><span class="detail-val" style="color:#58a6ff">${m.profiles.join(", ")}</span></div>
+    <p style="font-size:.76rem;color:#c9d1d9;margin:8px 0;line-height:1.5">${m.desc}</p>
+    <div class="deploy-box">
+      <div class="dkey">IMAGE</div>
+      <div class="dval">${m.img}</div>
+      ${m.type==="windows"?'<div class="dnote">⚠ Requires /dev/kvm on host (Linux only). Mac users: deploy to Beelink SER5 Pro.</div>':""}
+    </div>
+    <div style="margin-top:10px;font-size:.73rem;color:#8b949e;margin-bottom:4px">NETWORK INTERFACES</div>
+    ${m.ifaces.map(i=>`<div class="iface-item">${i.n} → <span>${i.ip}</span></div>`).join("")}
+  `;
+  switchTab("node", document.querySelectorAll(".sidebar-tabs button")[3]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resource bars
+// ─────────────────────────────────────────────────────────────────────────────
+function buildBars() {
+  const entries = Object.entries(machines).sort((a,b)=>b[1].ram-a[1].ram);
+  const totalRam = entries.reduce((s,[,m])=>s+m.ram,0);
+  const ramDiv = document.getElementById("ram-bars");
+  ramDiv.innerHTML = "";
+  for (const [id,m] of entries) {
+    const pctRam = Math.max(1, Math.round(m.ram/totalRam*100));
+    const color = m.type==="windows"?"#388bfd":m.type==="fw"?"#d29922":"#3fb950";
+    const ramStr = m.ram < 1 ? Math.round(m.ram*1024)+"MB" : m.ram+"GB";
+    ramDiv.innerHTML += `<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+      <div style="font-size:.68rem;color:#8b949e;width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${id}">${shortName(id)}</div>
+      <div style="flex:1"><div class="res-bar"><div class="res-fill" style="width:${pctRam}%;background:${color}"></div></div></div>
+      <div style="font-size:.68rem;color:#c9d1d9;width:38px;text-align:right">${ramStr}</div>
+    </div>`;
+  }
+
+  // type breakdown
+  let linuxRam=0, winRam=0, fwRam=0;
+  for (const [,m] of entries) {
+    if (m.type==="linux") linuxRam+=m.ram;
+    else if (m.type==="windows") winRam+=m.ram;
+    else fwRam+=m.ram;
+  }
+  document.getElementById("type-breakdown").innerHTML = `
+    <div class="issue"><div class="dot green"></div><span>Linux containers: <strong>${linuxRam.toFixed(1)} GB</strong> total (${Math.round(linuxRam/totalRam*100)}%)</span></div>
+    <div class="issue"><div class="dot blue"></div><span>Windows containers (dockur): <strong>${winRam} GB</strong> total (${Math.round(winRam/totalRam*100)}%)</span></div>
+    <div class="issue"><div class="dot yellow"></div><span>Firewall/router containers: <strong>${fwRam.toFixed(2)} GB</strong> total (${Math.round(fwRam/totalRam*100)}%)</span></div>
+    <div style="margin-top:8px;font-size:.75rem;color:#8b949e">Windows VMs are still the RAM bottleneck (${Math.round(winRam/totalRam*100)}%). Linux containerization alone saves ~107 GB vs the VM version.</div>
+  `;
+}
+buildBars();
+
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".sidebar-tabs button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  if (btn) btn.classList.add("active");
+}
+</script>
+</body>
+</html>

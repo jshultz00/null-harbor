@@ -1,0 +1,649 @@
+{
+  "_meta": {
+    "version": "3.0",
+    "description": "Consolidated Cloud Range network map — container-based rewrite. Linux services run as Docker containers. Windows services run via dockur/windows (KVM-in-Docker). pfSense replaced with Linux iptables/nftables firewall containers. VyOS replaced with FRRouting container. Designed to fit within 32 GB RAM by running scenario subsets.",
+    "deployment": "docker-compose",
+    "host_requirements": {
+      "note": "dockur/windows requires KVM. On macOS use Docker Desktop + Rosetta, or deploy to the Beelink SER5 Pro (Linux host with KVM support). All Linux containers run on any Docker host.",
+      "min_ram_all_up": "~64 GB",
+      "min_ram_core_scenario": "~28 GB (subset — see profiles in docker-compose.yml)"
+    }
+  },
+  "networks": {
+    "Router-DMZ": {
+      "subnet": "130.2.2.0/24",
+      "docker_name": "router_dmz",
+      "description": "Connects the Blue border router to the DMZ firewall"
+    },
+    "Firewall": {
+      "subnet": "192.168.254.0/30",
+      "docker_name": "fw_link",
+      "description": "Back-to-back link between DMZ firewall (.242) and Central firewall (.241)"
+    },
+    "DMZ_Internal": {
+      "subnet": "172.16.100.0/24",
+      "docker_name": "dmz_internal",
+      "description": "DMZ internal segment — web servers, mail relay, DNS"
+    },
+    "DMZ_External": {
+      "subnet": "130.2.2.0/24",
+      "docker_name": "dmz_external",
+      "description": "DMZ external segment — public-facing IPs reachable from Router-DMZ"
+    },
+    "C2": {
+      "subnet": "172.16.0.0/24",
+      "docker_name": "c2",
+      "description": "Command and Control — scenario engine communicates with all blue hosts via this segment"
+    },
+    "Management": {
+      "subnet": "172.31.202.0/24",
+      "docker_name": "management",
+      "description": "Out-of-band management for firewalls and SOC workstations"
+    },
+    "Server": {
+      "subnet": "192.168.200.0/24",
+      "docker_name": "server",
+      "description": "Internal server segment — AD, DNS, Exchange, file servers"
+    },
+    "User": {
+      "subnet": "192.168.100.0/24",
+      "docker_name": "user",
+      "description": "User workstation segment — mixed OS corporate endpoints"
+    },
+    "SOC": {
+      "subnet": "192.168.110.0/24",
+      "docker_name": "soc",
+      "description": "Security Operations Center — analyst workstations"
+    },
+    "SIEM": {
+      "subnet": "192.168.66.0/24",
+      "docker_name": "siem",
+      "description": "SIEM tooling segment — log collection, SIEM platforms"
+    },
+    "DB": {
+      "subnet": "192.168.214.0/24",
+      "docker_name": "db",
+      "description": "Database segment — MSSQL server"
+    },
+    "Scenario": {
+      "subnet": "9.53.99.0/24",
+      "docker_name": "scenario",
+      "description": "Scenario/management segment — HN-SCN scenario engine"
+    },
+    "Main": {
+      "subnet": "17.93.8.0/29",
+      "docker_name": "main",
+      "description": "Transit segment connecting the Blue border router to the scenario/internet node"
+    },
+    "External": {
+      "subnet": "any",
+      "docker_name": "external",
+      "description": "Simulates the internet — HN-SCN hosts fake domains, C2 infra, and traffic generation"
+    }
+  },
+  "machines": {
+    "HN-SCN": {
+      "OS": "Kali (rolling)",
+      "CPUs": "4",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "20",
+      "description": "Unified scenario and internet simulation node. Merges attack orchestration (Salt Master, Metasploit, CRAM) and fake internet simulation (CoreDNS, Caddy HTTPS, SMTP, traffic generators). Scenarios stored at /home/trainer/scenarios. Fake internet domains served from /var/www/html.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "kalilinux/kali-rolling",
+        "mem_limit": "4g",
+        "cap_add": ["NET_ADMIN", "NET_RAW"],
+        "privileged": false,
+        "volumes": ["./scenarios:/home/trainer/scenarios", "./www:/var/www/html"],
+        "notes": "Reduced from 12 GB VM — Metasploit + CoreDNS comfortably run in 4 GB. Increase to 8 GB if running many parallel attack modules."
+      },
+      "interfaces": [
+        {"network": "Scenario", "ip": "9.53.99.47/24"},
+        {"network": "Main",     "ip": "17.93.8.4/29"},
+        {"network": "External", "ip": "any"},
+        {"network": "C2",       "ip": "172.16.0.1/24"}
+      ]
+    },
+    "HN-BRDR-Blue-Router": {
+      "OS": "Linux (FRRouting)",
+      "CPUs": "1",
+      "Memory (GB)": "0.25",
+      "HDD Size (GB)": "1",
+      "description": "Blue-side border router. Routes traffic from the Main segment into the DMZ via Router-DMZ. Replaces VyOS VM with a lightweight FRRouting container.",
+      "deploy": {
+        "type": "linux-router",
+        "image": "frrouting/frr:latest",
+        "mem_limit": "256m",
+        "cap_add": ["NET_ADMIN", "NET_RAW", "SYS_ADMIN"],
+        "sysctls": ["net.ipv4.ip_forward=1"],
+        "notes": "VyOS replaced with FRRouting. Full BGP/OSPF/static routing available. Minimal RAM footprint."
+      },
+      "interfaces": [
+        {"network": "Router-DMZ", "ip": "130.2.2.1/24"},
+        {"network": "Main",       "ip": "17.93.8.1/29"}
+      ]
+    },
+    "HN-FW-DMZ": {
+      "OS": "Linux (iptables/nftables)",
+      "CPUs": "1",
+      "Memory (GB)": "0.25",
+      "HDD Size (GB)": "1",
+      "description": "DMZ perimeter firewall. Replaces pfSense VM with a Debian container running nftables. Connects the Blue border router to the DMZ internal segment and passes traffic toward the Central firewall.",
+      "deploy": {
+        "type": "linux-firewall",
+        "image": "debian:bookworm-slim",
+        "mem_limit": "256m",
+        "cap_add": ["NET_ADMIN", "NET_RAW"],
+        "sysctls": ["net.ipv4.ip_forward=1"],
+        "volumes": ["./config/fw-dmz/nftables.conf:/etc/nftables.conf:ro"],
+        "notes": "pfSense replaced with nftables on Debian slim. Config in ./config/fw-dmz/. Web UI lost — manage via exec or management network SSH."
+      },
+      "interfaces": [
+        {"network": "Management",   "ip": "172.31.202.140/24"},
+        {"network": "Firewall",     "ip": "192.168.254.242/30"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.254/24"},
+        {"network": "Router-DMZ",   "ip": "130.2.2.2/24"}
+      ]
+    },
+    "HN-FW-Central": {
+      "OS": "Linux (iptables/nftables)",
+      "CPUs": "1",
+      "Memory (GB)": "0.25",
+      "HDD Size (GB)": "1",
+      "description": "Central firewall and core router for all internal blue segments. Replaces pfSense VM. Connects Server, User, SOC, SIEM, and DB segments.",
+      "deploy": {
+        "type": "linux-firewall",
+        "image": "debian:bookworm-slim",
+        "mem_limit": "256m",
+        "cap_add": ["NET_ADMIN", "NET_RAW"],
+        "sysctls": ["net.ipv4.ip_forward=1"],
+        "volumes": ["./config/fw-central/nftables.conf:/etc/nftables.conf:ro"],
+        "notes": "pfSense replaced with nftables on Debian slim. All inter-segment routing and ACLs defined in nftables.conf."
+      },
+      "interfaces": [
+        {"network": "Management", "ip": "172.31.202.139/24"},
+        {"network": "Firewall",   "ip": "192.168.254.241/30"},
+        {"network": "Server",     "ip": "192.168.200.254/24"},
+        {"network": "User",       "ip": "192.168.100.254/24"},
+        {"network": "SOC",        "ip": "192.168.110.254/24"},
+        {"network": "SIEM",       "ip": "192.168.66.254/24"},
+        {"network": "DB",         "ip": "192.168.214.254/24"}
+      ]
+    },
+    "HN-DMZ-Web01": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "1",
+      "Memory (GB)": "0.5",
+      "HDD Size (GB)": "2",
+      "description": "Linux DMZ web server running Apache. Hosts a lifestyle/magazine website. Vulnerable web application surface for initial access scenarios.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "ubuntu:22.04",
+        "mem_limit": "512m",
+        "volumes": ["./webapps/web01:/var/www/html:ro"],
+        "notes": "Intentionally vulnerable Apache config mounted at runtime. Drop in DVWA or custom vuln app."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.40/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.10/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.4/24"}
+      ]
+    },
+    "HN-DMZ-Web02": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "1",
+      "Memory (GB)": "0.5",
+      "HDD Size (GB)": "2",
+      "description": "Linux DMZ web server running Apache. Hosts a coffee shop / retail website. Secondary Linux target for web-based initial access or mass defacement scenarios.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "ubuntu:22.04",
+        "mem_limit": "512m",
+        "volumes": ["./webapps/web02:/var/www/html:ro"],
+        "notes": "Pair with Web01 for mass defacement scenarios. Can be scaled down to 256m if resource constrained."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.41/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.11/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.8/24"}
+      ]
+    },
+    "HN-DMZ-Web03": {
+      "OS": "Windows Server 2019",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "40",
+      "description": "Windows DMZ web server running IIS. Hosts a corporate services website. Primary Windows target for web exploitation, WebShell deployment, and lateral movement pivot into internal segments.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2019",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "40G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "KVM required. Runs Windows Server 2019 via QEMU inside Docker. IIS role installed post-boot via unattend.xml or Salt state."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.42/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.12/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.12/24"}
+      ]
+    },
+    "HN-DMZ-Web04": {
+      "OS": "Windows Server 2019",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "40",
+      "description": "Windows DMZ web server running IIS. Hosts a drone photography / media website. Secondary Windows IIS target; used in mass defacement and web server compromise scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2019",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "40G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Consider omitting in low-RAM scenarios — Web03 alone covers IIS attack surface."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.43/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.13/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.16/24"}
+      ]
+    },
+    "HN-DMZ-DNS": {
+      "OS": "Windows Server 2016",
+      "CPUs": "1",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "20",
+      "description": "DMZ DNS server. Provides name resolution within the DMZ. Used in DNS tunneling and C2-over-DNS scenarios as a pivot point.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "20G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Could optionally be replaced with a BIND9 Linux container if pure DNS tunneling is the only goal. Keep Windows if DNS role + AD integration matters."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.44/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.6/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.6/24"}
+      ]
+    },
+    "HN-DMZ-Mail-Relay": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "1",
+      "Memory (GB)": "0.25",
+      "HDD Size (GB)": "2",
+      "description": "Postfix-based mail relay in the DMZ. Accepts inbound SMTP from External and relays to HN-SRV-Exchange internally. Used in phishing delivery and SMTP exfiltration scenarios.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "boky/postfix",
+        "mem_limit": "256m",
+        "environment": {
+          "RELAYHOST": "192.168.200.10",
+          "ALLOWED_SENDER_DOMAINS": "holey.net"
+        },
+        "notes": "Lightweight Postfix container. No OS overhead — drops from 2 GB VM to ~256 MB."
+      },
+      "interfaces": [
+        {"network": "C2",           "ip": "172.16.0.45/24"},
+        {"network": "DMZ_Internal", "ip": "172.16.100.8/24"},
+        {"network": "DMZ_External", "ip": "130.2.2.20/24"}
+      ]
+    },
+    "HN-SRV-DC01": {
+      "OS": "Windows Server 2016",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "30",
+      "description": "Primary Active Directory Domain Controller for the holey.net domain. Runs AD DS, DNS (backup), and Kerberos. High-value target for credential attacks, DCSync, and Golden Ticket scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "30G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Core to most scenarios. Always keep this running. AD DS promotion script in ./config/dc01/setup.ps1."
+      },
+      "interfaces": [
+        {"network": "C2",    "ip": "172.16.0.70/24"},
+        {"network": "Server","ip": "192.168.200.1/24"}
+      ]
+    },
+    "HN-SRV-DNS": {
+      "OS": "Windows Server 2016",
+      "CPUs": "1",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "20",
+      "description": "Primary DNS server for the internal holey.net domain. Handles all internal resolution for the Server, User, SOC, and DB segments.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "20G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Can be consolidated into DC01 (DC01 already runs DNS backup). Run standalone only if testing DNS-specific attacks."
+      },
+      "interfaces": [
+        {"network": "C2",    "ip": "172.16.0.71/24"},
+        {"network": "Server","ip": "192.168.200.100/24"}
+      ]
+    },
+    "HN-SRV-Exchange": {
+      "OS": "Windows Server 2016",
+      "CPUs": "2",
+      "Memory (GB)": "6",
+      "HDD Size (GB)": "60",
+      "description": "Microsoft Exchange mail server for the holey.net domain. Receives mail relayed from HN-DMZ-Mail-Relay. Used in phishing, email exfiltration, and credential harvesting scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "6g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "6G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "60G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Exchange is the single biggest Windows RAM consumer. Drop to 4G if RAM constrained — Exchange will be slow but functional. Skip entirely in resource-constrained profiles."
+      },
+      "interfaces": [
+        {"network": "C2",    "ip": "172.16.0.72/24"},
+        {"network": "Server","ip": "192.168.200.10/24"}
+      ]
+    },
+    "HN-SRV-CA": {
+      "OS": "Windows Server 2016",
+      "CPUs": "1",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "30",
+      "description": "Active Directory Certificate Services (AD CS) server. Issues internal PKI certificates for holey.net. Enables ADCS attack scenarios: ESC1 (template misconfiguration), ESC4 (template write access), ESC8 (NTLM relay to CA Web Enrollment). NOTE: description in v2.0 incorrectly said 'file server' — this is a Certificate Authority.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "30G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "AD CS role setup script in ./config/ca/setup.ps1. Intentionally misconfigured templates for ESC1–ESC8 scenarios. Requires DC01 to be up first."
+      },
+      "interfaces": [
+        {"network": "C2",    "ip": "172.16.0.73/24"},
+        {"network": "Server","ip": "192.168.200.12/24"}
+      ]
+    },
+    "HN-SRV-Files": {
+      "OS": "Windows Server 2016",
+      "CPUs": "1",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "40",
+      "description": "File server with SMB shares accessible to domain users. Used for lateral movement via UNC paths, data staging, ransomware simulation (mass encryption), and exfiltration scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "40G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Pre-populate SMB shares with fake sensitive data (./data/shares/) for realistic ransomware/exfil scenarios."
+      },
+      "interfaces": [
+        {"network": "C2",    "ip": "172.16.0.74/24"},
+        {"network": "Server","ip": "192.168.200.6/24"}
+      ]
+    },
+    "HN-DB-DB01": {
+      "OS": "Windows Server 2016",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "40",
+      "description": "Microsoft SQL Server database host. Stores application databases for web servers and internal services. Used in SQL injection, credential dumping via xp_cmdshell, and data exfiltration scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "2016",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "40G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Alternative: use mcr.microsoft.com/mssql/server Linux container (saves ~3 GB vs Windows, no KVM needed). Only use Windows if OS-level post-exploitation is required."
+      },
+      "interfaces": [
+        {"network": "C2","ip": "172.16.0.30/24"},
+        {"network": "DB", "ip": "192.168.214.10/24"}
+      ]
+    },
+    "HN-USER-WKS-01": {
+      "OS": "Windows 7 SP1",
+      "CPUs": "1",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "20",
+      "description": "Legacy Windows 7 user workstation joined to holey.net domain. Intentionally unpatched to support EternalBlue (MS17-010) and other legacy exploit scenarios.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "win7",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "20G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "⚠ Windows 7 support in dockur/windows may require a provided ISO (activation + driver support varies). Test carefully. Domain join may require manual steps post-boot."
+      },
+      "interfaces": [
+        {"network": "C2",  "ip": "172.16.0.100/24"},
+        {"network": "User","ip": "192.168.100.10/24"}
+      ]
+    },
+    "HN-USER-WKS-02": {
+      "OS": "Windows 10",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "25",
+      "description": "Windows 10 user workstation joined to holey.net domain. Standard corporate endpoint. Primary target for phishing payload delivery, credential harvesting, and lateral movement.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "win10",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "25G"
+        },
+        "devices": ["/dev/kvm"]
+      },
+      "interfaces": [
+        {"network": "C2",  "ip": "172.16.0.101/24"},
+        {"network": "User","ip": "192.168.100.11/24"}
+      ]
+    },
+    "HN-USER-WKS-03": {
+      "OS": "Windows 11",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "25",
+      "description": "Windows 11 user workstation joined to holey.net domain. Modern endpoint for testing detection of attacks against current-generation OS defenses (SmartScreen, Credential Guard, AMSI).",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "win11",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "25G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Win11 requires TPM. dockur/windows provides a software TPM (swtpm) — verify it's enabled in the dockur image version you use."
+      },
+      "interfaces": [
+        {"network": "C2",  "ip": "172.16.0.102/24"},
+        {"network": "User","ip": "192.168.100.12/24"}
+      ]
+    },
+    "HN-USER-WKS-04": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "1",
+      "Memory (GB)": "0.5",
+      "HDD Size (GB)": "5",
+      "description": "Linux user workstation. Simulates a developer or engineering endpoint on the corporate network. Used in Linux persistence, LD_PRELOAD rootkit, and SSH key harvesting scenarios.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "ubuntu:22.04",
+        "mem_limit": "512m",
+        "notes": "Drops from 4 GB VM to 512 MB container. Add OpenSSH server and a non-root user with sudo for realistic attack surface."
+      },
+      "interfaces": [
+        {"network": "C2",  "ip": "172.16.0.103/24"},
+        {"network": "User","ip": "192.168.100.13/24"}
+      ]
+    },
+    "HN-SIEM-SecurityOnion": {
+      "OS": "Security Onion (Docker mode)",
+      "CPUs": "4",
+      "Memory (GB)": "8",
+      "HDD Size (GB)": "100",
+      "description": "Security Onion in standalone Docker mode. IDS/IPS (Suricata), threat hunting (Zeek), and log management. Primary NSPM sensor for the range.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "securityonionsolutions/so-manager:latest",
+        "mem_limit": "8g",
+        "volumes": ["./data/securityonion:/nsm"],
+        "notes": "Security Onion ships its own Docker-based installer (so-setup). Use standalone mode. Reduced from 32 GB VM to 8 GB — sufficient for a small range with moderate traffic volume."
+      },
+      "interfaces": [
+        {"network": "SIEM","ip": "192.168.66.26/24"}
+      ]
+    },
+    "HN-SIEM-Splunk": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "50",
+      "description": "Splunk Enterprise (free license, <500 MB/day). Ingests logs from all blue hosts via the Rsyslog forwarder. Primary SIEM for analyst training exercises.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "splunk/splunk:latest",
+        "mem_limit": "4g",
+        "environment": {
+          "SPLUNK_START_ARGS": "--accept-license",
+          "SPLUNK_PASSWORD": "changeme123"
+        },
+        "volumes": ["./data/splunk:/opt/splunk/var"],
+        "notes": "Reduced from 16 GB VM to 4 GB container. Free license caps at 500 MB/day ingest — sufficient for a range. Omit from low-RAM profiles and use Security Onion only."
+      },
+      "interfaces": [
+        {"network": "SIEM","ip": "192.168.66.50/24"}
+      ]
+    },
+    "HN-SIEM-Rsyslog": {
+      "OS": "Ubuntu 22.04",
+      "CPUs": "1",
+      "Memory (GB)": "0.25",
+      "HDD Size (GB)": "10",
+      "description": "Central syslog aggregation server. Receives logs from all blue hosts and forwards to Splunk. Removed QRadar reference — not deployed in this range.",
+      "deploy": {
+        "type": "linux-container",
+        "image": "rsyslog/syslog_appliance_alpine:latest",
+        "mem_limit": "256m",
+        "volumes": ["./data/rsyslog:/var/log/remote"],
+        "notes": "Tiny footprint. Drops from 4 GB VM to 256 MB container."
+      },
+      "interfaces": [
+        {"network": "SIEM","ip": "192.168.66.150/24"}
+      ]
+    },
+    "HN-SOC-WKS-01": {
+      "OS": "Windows 10",
+      "CPUs": "2",
+      "Memory (GB)": "4",
+      "HDD Size (GB)": "25",
+      "description": "SOC analyst workstation. Pre-loaded with investigation tools (Zenmap, Ghidra, browser shortcuts to SIEMs). Accessible via Guacamole from the access/training portal.",
+      "deploy": {
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "4g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "win10",
+          "RAM_SIZE": "4G",
+          "CPU_CORES": "2",
+          "DISK_SIZE": "25G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "Alternatively, use a Kali or Ubuntu container with a VNC/noVNC server for a lighter-weight analyst desktop."
+      },
+      "interfaces": [
+        {"network": "Management","ip": "172.31.202.11/24"},
+        {"network": "C2",        "ip": "172.16.0.80/24"},
+        {"network": "SOC",       "ip": "192.168.110.11/24"}
+      ]
+    }
+  },
+  "profiles": {
+    "_note": "Use Docker Compose profiles to run scenario-specific subsets and stay within 32 GB RAM.",
+    "core": {
+      "description": "Minimum viable range — covers lateral movement, AD attacks, credential dumping. ~20 GB RAM.",
+      "services": ["HN-SCN","HN-FW-DMZ","HN-FW-Central","HN-SRV-DC01","HN-USER-WKS-02","HN-SIEM-SecurityOnion","HN-SIEM-Rsyslog"]
+    },
+    "web-attack": {
+      "description": "Adds DMZ web servers and DB for initial access → pivot scenarios. ~28 GB RAM.",
+      "services": ["core", "HN-BRDR-Blue-Router","HN-DMZ-Web01","HN-DMZ-Web03","HN-DMZ-DNS","HN-DMZ-Mail-Relay","HN-SRV-Exchange","HN-DB-DB01"]
+    },
+    "full": {
+      "description": "All services. Requires ~64 GB RAM — suitable for cloud or future hardware upgrade.",
+      "services": ["all"]
+    }
+  }
+}

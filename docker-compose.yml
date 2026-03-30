@@ -1,0 +1,677 @@
+# ============================================================================
+# Local Cyber Range — Docker Compose
+# ============================================================================
+# Usage:
+#   All up (needs ~64 GB):  docker compose up -d
+#   Core profile (~20 GB):  docker compose --profile core up -d
+#   Web-attack (~28 GB):    docker compose --profile web-attack up -d
+#
+# Prerequisites:
+#   - Linux host with KVM enabled (/dev/kvm accessible) for Windows containers
+#   - Docker Engine 24+ and Compose v2
+#   - dockur/windows images pull from ghcr.io — ensure registry access
+# ============================================================================
+
+name: cyber-range
+
+# ---------------------------------------------------------------------------
+# Networks — one per segment in network_map.json
+# ---------------------------------------------------------------------------
+networks:
+  main:
+    driver: bridge
+    ipam:
+      config: [{subnet: "17.93.8.0/29"}]
+
+  router_dmz:
+    driver: bridge
+    ipam:
+      config: [{subnet: "130.2.2.0/24"}]
+
+  fw_link:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.254.0/30"}]
+
+  dmz_internal:
+    driver: bridge
+    ipam:
+      config: [{subnet: "172.16.100.0/24"}]
+
+  c2:
+    driver: bridge
+    ipam:
+      config: [{subnet: "172.16.0.0/24"}]
+
+  management:
+    driver: bridge
+    ipam:
+      config: [{subnet: "172.31.202.0/24"}]
+
+  server:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.200.0/24"}]
+
+  user:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.100.0/24"}]
+
+  soc_net:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.110.0/24"}]
+
+  siem:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.66.0/24"}]
+
+  db:
+    driver: bridge
+    ipam:
+      config: [{subnet: "192.168.214.0/24"}]
+
+  scenario:
+    driver: bridge
+    ipam:
+      config: [{subnet: "9.53.99.0/24"}]
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ── Scenario Engine ────────────────────────────────────────────────────────
+  hn-scn:
+    container_name: HN-SCN
+    image: kalilinux/kali-rolling
+    profiles: [core, web-attack, full]
+    hostname: hn-scn
+    cap_add: [NET_ADMIN, NET_RAW]
+    mem_limit: 4g
+    cpus: 4
+    networks:
+      scenario:
+        ipv4_address: "9.53.99.47"
+      main:
+        ipv4_address: "17.93.8.4"
+      c2:
+        ipv4_address: "172.16.0.1"
+    volumes:
+      - ./scenarios:/home/trainer/scenarios
+      - ./www:/var/www/html
+    environment:
+      - KALI_PACKAGES=metasploit-framework,nmap,coredns,caddy,postfix
+    command: >
+      bash -c "
+        sysctl -w net.ipv4.ip_forward=1 &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+
+  # ── Routing & Firewalls ────────────────────────────────────────────────────
+  hn-brdr-router:
+    container_name: HN-BRDR-Blue-Router
+    image: frrouting/frr:latest
+    profiles: [web-attack, full]
+    hostname: hn-brdr-router
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    mem_limit: 256m
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.forwarding=1
+    networks:
+      router_dmz:
+        ipv4_address: "130.2.2.1"
+      main:
+        ipv4_address: "17.93.8.1"
+    volumes:
+      - ./config/brdr-router/frr.conf:/etc/frr/frr.conf:ro
+    restart: unless-stopped
+
+  hn-fw-dmz:
+    container_name: HN-FW-DMZ
+    image: debian:bookworm-slim
+    profiles: [core, web-attack, full]
+    hostname: hn-fw-dmz
+    cap_add: [NET_ADMIN, NET_RAW]
+    mem_limit: 256m
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      management:
+        ipv4_address: "172.31.202.140"
+      fw_link:
+        ipv4_address: "192.168.254.242"
+      dmz_internal:
+        ipv4_address: "172.16.100.254"
+      router_dmz:
+        ipv4_address: "130.2.2.2"
+    volumes:
+      - ./config/fw-dmz/nftables.conf:/etc/nftables.conf:ro
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq nftables iproute2 &&
+        nft -f /etc/nftables.conf &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+
+  hn-fw-central:
+    container_name: HN-FW-Central
+    image: debian:bookworm-slim
+    profiles: [core, web-attack, full]
+    hostname: hn-fw-central
+    cap_add: [NET_ADMIN, NET_RAW]
+    mem_limit: 256m
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      management:
+        ipv4_address: "172.31.202.139"
+      fw_link:
+        ipv4_address: "192.168.254.241"
+      server:
+        ipv4_address: "192.168.200.254"
+      user:
+        ipv4_address: "192.168.100.254"
+      soc_net:
+        ipv4_address: "192.168.110.254"
+      siem:
+        ipv4_address: "192.168.66.254"
+      db:
+        ipv4_address: "192.168.214.254"
+    volumes:
+      - ./config/fw-central/nftables.conf:/etc/nftables.conf:ro
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq nftables iproute2 &&
+        nft -f /etc/nftables.conf &&
+        tail -f /dev/null
+      "
+    restart: unless-stopped
+
+  # ── DMZ Linux Web Servers ─────────────────────────────────────────────────
+  hn-dmz-web01:
+    container_name: HN-DMZ-Web01
+    image: ubuntu:22.04
+    profiles: [web-attack, full]
+    hostname: hn-dmz-web01
+    mem_limit: 512m
+    cpus: 1
+    networks:
+      c2:
+        ipv4_address: "172.16.0.40"
+      dmz_internal:
+        ipv4_address: "172.16.100.10"
+      router_dmz:
+        ipv4_address: "130.2.2.4"
+    volumes:
+      - ./webapps/web01:/var/www/html:ro
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq apache2 &&
+        apache2ctl -D FOREGROUND
+      "
+    restart: unless-stopped
+
+  hn-dmz-web02:
+    container_name: HN-DMZ-Web02
+    image: ubuntu:22.04
+    profiles: [full]
+    hostname: hn-dmz-web02
+    mem_limit: 512m
+    cpus: 1
+    networks:
+      c2:
+        ipv4_address: "172.16.0.41"
+      dmz_internal:
+        ipv4_address: "172.16.100.11"
+      router_dmz:
+        ipv4_address: "130.2.2.8"
+    volumes:
+      - ./webapps/web02:/var/www/html:ro
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq apache2 &&
+        apache2ctl -D FOREGROUND
+      "
+    restart: unless-stopped
+
+  # ── DMZ Windows Web Servers (dockur/windows) ──────────────────────────────
+  hn-dmz-web03:
+    container_name: HN-DMZ-Web03
+    image: ghcr.io/dockur/windows
+    profiles: [web-attack, full]
+    hostname: hn-dmz-web03
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    cap_add: [NET_ADMIN]
+    networks:
+      c2:
+        ipv4_address: "172.16.0.42"
+      dmz_internal:
+        ipv4_address: "172.16.100.12"
+      router_dmz:
+        ipv4_address: "130.2.2.12"
+    environment:
+      VERSION: "2019"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "40G"
+    volumes:
+      - hn-dmz-web03-disk:/storage
+      - ./config/web03/unattend.xml:/unattend.xml:ro
+    restart: unless-stopped
+
+  hn-dmz-web04:
+    container_name: HN-DMZ-Web04
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-dmz-web04
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    cap_add: [NET_ADMIN]
+    networks:
+      c2:
+        ipv4_address: "172.16.0.43"
+      dmz_internal:
+        ipv4_address: "172.16.100.13"
+      router_dmz:
+        ipv4_address: "130.2.2.16"
+    environment:
+      VERSION: "2019"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "40G"
+    volumes:
+      - hn-dmz-web04-disk:/storage
+    restart: unless-stopped
+
+  # ── DMZ Supporting Services ───────────────────────────────────────────────
+  hn-dmz-dns:
+    container_name: HN-DMZ-DNS
+    image: ghcr.io/dockur/windows
+    profiles: [web-attack, full]
+    hostname: hn-dmz-dns
+    mem_limit: 2g
+    cpus: 1
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.44"
+      dmz_internal:
+        ipv4_address: "172.16.100.6"
+      router_dmz:
+        ipv4_address: "130.2.2.6"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "2G"
+      CPU_CORES: "1"
+      DISK_SIZE: "20G"
+    volumes:
+      - hn-dmz-dns-disk:/storage
+    restart: unless-stopped
+
+  hn-dmz-mail-relay:
+    container_name: HN-DMZ-Mail-Relay
+    image: boky/postfix
+    profiles: [web-attack, full]
+    hostname: hn-dmz-mail-relay
+    mem_limit: 256m
+    networks:
+      c2:
+        ipv4_address: "172.16.0.45"
+      dmz_internal:
+        ipv4_address: "172.16.100.8"
+      router_dmz:
+        ipv4_address: "130.2.2.20"
+    environment:
+      RELAYHOST: "192.168.200.10"
+      ALLOWED_SENDER_DOMAINS: "holey.net"
+      POSTFIX_myhostname: "mail.holey.net"
+    restart: unless-stopped
+
+  # ── Internal Servers ──────────────────────────────────────────────────────
+  hn-srv-dc01:
+    container_name: HN-SRV-DC01
+    image: ghcr.io/dockur/windows
+    profiles: [core, web-attack, full]
+    hostname: hn-srv-dc01
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.70"
+      server:
+        ipv4_address: "192.168.200.1"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "30G"
+    volumes:
+      - hn-srv-dc01-disk:/storage
+      - ./config/dc01/unattend.xml:/unattend.xml:ro
+    restart: unless-stopped
+
+  hn-srv-dns:
+    container_name: HN-SRV-DNS
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-srv-dns
+    mem_limit: 2g
+    cpus: 1
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.71"
+      server:
+        ipv4_address: "192.168.200.100"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "2G"
+      CPU_CORES: "1"
+      DISK_SIZE: "20G"
+    volumes:
+      - hn-srv-dns-disk:/storage
+    restart: unless-stopped
+
+  hn-srv-exchange:
+    container_name: HN-SRV-Exchange
+    image: ghcr.io/dockur/windows
+    profiles: [web-attack, full]
+    hostname: hn-srv-exchange
+    mem_limit: 6g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.72"
+      server:
+        ipv4_address: "192.168.200.10"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "6G"
+      CPU_CORES: "2"
+      DISK_SIZE: "60G"
+    volumes:
+      - hn-srv-exchange-disk:/storage
+    depends_on:
+      - hn-srv-dc01
+    restart: unless-stopped
+
+  hn-srv-ca:
+    container_name: HN-SRV-CA
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-srv-ca
+    mem_limit: 2g
+    cpus: 1
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.73"
+      server:
+        ipv4_address: "192.168.200.12"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "2G"
+      CPU_CORES: "1"
+      DISK_SIZE: "30G"
+    volumes:
+      - hn-srv-ca-disk:/storage
+      - ./config/ca/unattend.xml:/unattend.xml:ro
+    depends_on:
+      - hn-srv-dc01
+    restart: unless-stopped
+
+  hn-srv-files:
+    container_name: HN-SRV-Files
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-srv-files
+    mem_limit: 2g
+    cpus: 1
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.74"
+      server:
+        ipv4_address: "192.168.200.6"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "2G"
+      CPU_CORES: "1"
+      DISK_SIZE: "40G"
+    volumes:
+      - hn-srv-files-disk:/storage
+      - ./data/shares:/shares:ro
+    depends_on:
+      - hn-srv-dc01
+    restart: unless-stopped
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  hn-db-db01:
+    container_name: HN-DB-DB01
+    image: ghcr.io/dockur/windows
+    # Alternative (lighter, no KVM): image: mcr.microsoft.com/mssql/server:2019-latest
+    profiles: [web-attack, full]
+    hostname: hn-db-db01
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.30"
+      db:
+        ipv4_address: "192.168.214.10"
+    environment:
+      VERSION: "2016"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "40G"
+    volumes:
+      - hn-db-db01-disk:/storage
+    restart: unless-stopped
+
+  # ── User Workstations ─────────────────────────────────────────────────────
+  hn-user-wks-01:
+    container_name: HN-USER-WKS-01
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-user-wks-01
+    mem_limit: 2g
+    cpus: 1
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.100"
+      user:
+        ipv4_address: "192.168.100.10"
+    environment:
+      VERSION: "win7"   # ⚠ May require providing your own ISO — test carefully
+      RAM_SIZE: "2G"
+      CPU_CORES: "1"
+      DISK_SIZE: "20G"
+    volumes:
+      - hn-user-wks01-disk:/storage
+    restart: unless-stopped
+
+  hn-user-wks-02:
+    container_name: HN-USER-WKS-02
+    image: ghcr.io/dockur/windows
+    profiles: [core, web-attack, full]
+    hostname: hn-user-wks-02
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.101"
+      user:
+        ipv4_address: "192.168.100.11"
+    environment:
+      VERSION: "win10"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "25G"
+    volumes:
+      - hn-user-wks02-disk:/storage
+    restart: unless-stopped
+
+  hn-user-wks-03:
+    container_name: HN-USER-WKS-03
+    image: ghcr.io/dockur/windows
+    profiles: [full]
+    hostname: hn-user-wks-03
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      c2:
+        ipv4_address: "172.16.0.102"
+      user:
+        ipv4_address: "192.168.100.12"
+    environment:
+      VERSION: "win11"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "25G"
+    volumes:
+      - hn-user-wks03-disk:/storage
+    restart: unless-stopped
+
+  hn-user-wks-04:
+    container_name: HN-USER-WKS-04
+    image: ubuntu:22.04
+    profiles: [full]
+    hostname: hn-user-wks-04
+    mem_limit: 512m
+    cpus: 1
+    networks:
+      c2:
+        ipv4_address: "172.16.0.103"
+      user:
+        ipv4_address: "192.168.100.13"
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq openssh-server sudo &&
+        useradd -m -s /bin/bash analyst && echo 'analyst:analyst' | chpasswd &&
+        usermod -aG sudo analyst &&
+        service ssh start && tail -f /dev/null
+      "
+    restart: unless-stopped
+
+  # ── SIEM Stack ────────────────────────────────────────────────────────────
+  hn-siem-rsyslog:
+    container_name: HN-SIEM-Rsyslog
+    image: rsyslog/syslog_appliance_alpine:latest
+    profiles: [core, web-attack, full]
+    hostname: hn-siem-rsyslog
+    mem_limit: 256m
+    networks:
+      siem:
+        ipv4_address: "192.168.66.150"
+    volumes:
+      - ./data/rsyslog:/var/log/remote
+      - ./config/rsyslog/rsyslog.conf:/etc/rsyslog.conf:ro
+    restart: unless-stopped
+
+  hn-siem-splunk:
+    container_name: HN-SIEM-Splunk
+    image: splunk/splunk:latest
+    profiles: [web-attack, full]
+    hostname: hn-siem-splunk
+    mem_limit: 4g
+    cpus: 2
+    networks:
+      siem:
+        ipv4_address: "192.168.66.50"
+    environment:
+      SPLUNK_START_ARGS: "--accept-license"
+      SPLUNK_PASSWORD: "changeme123"
+    volumes:
+      - ./data/splunk:/opt/splunk/var
+    ports:
+      - "8000:8000"   # Splunk Web UI — expose on host for analyst access
+    restart: unless-stopped
+
+  hn-siem-securityonion:
+    container_name: HN-SIEM-SecurityOnion
+    image: securityonionsolutions/so-manager:latest
+    profiles: [core, web-attack, full]
+    hostname: hn-siem-securityonion
+    mem_limit: 8g
+    cpus: 4
+    networks:
+      siem:
+        ipv4_address: "192.168.66.26"
+    volumes:
+      - ./data/securityonion:/nsm
+    ports:
+      - "443:443"     # Security Onion UI — expose on host for analyst access
+    restart: unless-stopped
+
+  # ── SOC Workstation ───────────────────────────────────────────────────────
+  hn-soc-wks-01:
+    container_name: HN-SOC-WKS-01
+    image: ghcr.io/dockur/windows
+    profiles: [core, web-attack, full]
+    hostname: hn-soc-wks-01
+    mem_limit: 4g
+    cpus: 2
+    devices:
+      - /dev/kvm
+    networks:
+      management:
+        ipv4_address: "172.31.202.11"
+      c2:
+        ipv4_address: "172.16.0.80"
+      soc_net:
+        ipv4_address: "192.168.110.11"
+    environment:
+      VERSION: "win10"
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "25G"
+    ports:
+      - "8006:8006"   # dockur/windows noVNC port — analyst desktop access
+    volumes:
+      - hn-soc-wks01-disk:/storage
+    restart: unless-stopped
+
+# ---------------------------------------------------------------------------
+# Volumes (persistent disk images for dockur/windows containers)
+# ---------------------------------------------------------------------------
+volumes:
+  hn-dmz-web03-disk:
+  hn-dmz-web04-disk:
+  hn-dmz-dns-disk:
+  hn-srv-dc01-disk:
+  hn-srv-dns-disk:
+  hn-srv-exchange-disk:
+  hn-srv-ca-disk:
+  hn-srv-files-disk:
+  hn-db-db01-disk:
+  hn-user-wks01-disk:
+  hn-user-wks02-disk:
+  hn-user-wks03-disk:
+  hn-soc-wks01-disk:
