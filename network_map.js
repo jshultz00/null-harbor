@@ -1,6 +1,8 @@
-{
+// Edit this file to add, remove, or modify machines and networks.
+// The HTML loads this directly via <script src>, so it works with file:// (no server needed).
+const NETWORK_MAP_DATA = {
   "_meta": {
-    "version": "3.0",
+    "version": "4.0",
     "description": "Consolidated Cloud Range network map — container-based rewrite. Linux services run as Docker containers. Windows services run via dockur/windows (KVM-in-Docker). pfSense replaced with Linux iptables/nftables firewall containers. VyOS replaced with FRRouting container. Designed to fit within 32 GB RAM by running scenario subsets.",
     "deployment": "docker-compose",
     "host_requirements": {
@@ -104,7 +106,7 @@
         {"network": "C2",       "ip": "172.16.0.1/24"}
       ]
     },
-    "HN-BRDR-Blue-Router": {
+    "HN-BRDR-Router": {
       "OS": "Linux (FRRouting)",
       "CPUs": "1",
       "Memory (GB)": "0.25",
@@ -261,24 +263,16 @@
       ]
     },
     "HN-DMZ-DNS": {
-      "OS": "Windows Server 2016",
+      "OS": "Ubuntu 22.04",
       "CPUs": "1",
-      "Memory (GB)": "2",
-      "HDD Size (GB)": "20",
+      "Memory (GB)": "0.5",
+      "HDD Size (GB)": "5",
       "description": "DMZ DNS server. Provides name resolution within the DMZ. Used in DNS tunneling and C2-over-DNS scenarios as a pivot point.",
       "deploy": {
-        "type": "windows-container",
-        "image": "ghcr.io/dockur/windows",
-        "mem_limit": "2g",
-        "requires_kvm": true,
-        "environment": {
-          "VERSION": "2016",
-          "RAM_SIZE": "2G",
-          "CPU_CORES": "1",
-          "DISK_SIZE": "20G"
-        },
-        "devices": ["/dev/kvm"],
-        "notes": "Could optionally be replaced with a BIND9 Linux container if pure DNS tunneling is the only goal. Keep Windows if DNS role + AD integration matters."
+        "type": "linux-container",
+        "image": "ubuntu:22.04",
+        "mem_limit": "512m",
+        "notes": "BIND9 DNS container. Lightweight replacement for the former Windows Server 2016 DNS VM. Configure with intentionally permissive zone transfers for DNS tunneling scenarios."
       },
       "interfaces": [
         {"network": "C2",           "ip": "172.16.0.44/24"},
@@ -459,24 +453,16 @@
       ]
     },
     "HN-USER-WKS-01": {
-      "OS": "Windows 7 SP1",
+      "OS": "Ubuntu 22.04",
       "CPUs": "1",
-      "Memory (GB)": "2",
-      "HDD Size (GB)": "20",
-      "description": "Legacy Windows 7 user workstation joined to holey.net domain. Intentionally unpatched to support EternalBlue (MS17-010) and other legacy exploit scenarios.",
+      "Memory (GB)": "0.5",
+      "HDD Size (GB)": "5",
+      "description": "Linux developer workstation. Simulates a developer or engineering endpoint on the corporate network. Used in Linux persistence, LD_PRELOAD rootkit, and SSH key harvesting scenarios.",
       "deploy": {
-        "type": "windows-container",
-        "image": "ghcr.io/dockur/windows",
-        "mem_limit": "2g",
-        "requires_kvm": true,
-        "environment": {
-          "VERSION": "win7",
-          "RAM_SIZE": "2G",
-          "CPU_CORES": "1",
-          "DISK_SIZE": "20G"
-        },
-        "devices": ["/dev/kvm"],
-        "notes": "⚠ Windows 7 support in dockur/windows may require a provided ISO (activation + driver support varies). Test carefully. Domain join may require manual steps post-boot."
+        "type": "linux-container",
+        "image": "ubuntu:22.04",
+        "mem_limit": "512m",
+        "notes": "Drops from 4 GB VM to 512 MB container. Add OpenSSH server and a non-root user with sudo for realistic attack surface."
       },
       "interfaces": [
         {"network": "C2",  "ip": "172.16.0.100/24"},
@@ -533,37 +519,28 @@
       ]
     },
     "HN-USER-WKS-04": {
-      "OS": "Ubuntu 22.04",
+      "OS": "Windows 7 SP1",
       "CPUs": "1",
-      "Memory (GB)": "0.5",
-      "HDD Size (GB)": "5",
-      "description": "Linux user workstation. Simulates a developer or engineering endpoint on the corporate network. Used in Linux persistence, LD_PRELOAD rootkit, and SSH key harvesting scenarios.",
+      "Memory (GB)": "2",
+      "HDD Size (GB)": "20",
+      "description": "Legacy Windows 7 user workstation joined to holey.net domain. Intentionally unpatched to support EternalBlue (MS17-010) and other legacy exploit scenarios.",
       "deploy": {
-        "type": "linux-container",
-        "image": "ubuntu:22.04",
-        "mem_limit": "512m",
-        "notes": "Drops from 4 GB VM to 512 MB container. Add OpenSSH server and a non-root user with sudo for realistic attack surface."
+        "type": "windows-container",
+        "image": "ghcr.io/dockur/windows",
+        "mem_limit": "2g",
+        "requires_kvm": true,
+        "environment": {
+          "VERSION": "win7",
+          "RAM_SIZE": "2G",
+          "CPU_CORES": "1",
+          "DISK_SIZE": "20G"
+        },
+        "devices": ["/dev/kvm"],
+        "notes": "⚠ Windows 7 support in dockur/windows may require a provided ISO (activation + driver support varies). Test carefully. Domain join may require manual steps post-boot."
       },
       "interfaces": [
         {"network": "C2",  "ip": "172.16.0.103/24"},
         {"network": "User","ip": "192.168.100.13/24"}
-      ]
-    },
-    "HN-SIEM-SecurityOnion": {
-      "OS": "Security Onion (Docker mode)",
-      "CPUs": "4",
-      "Memory (GB)": "8",
-      "HDD Size (GB)": "100",
-      "description": "Security Onion in standalone Docker mode. IDS/IPS (Suricata), threat hunting (Zeek), and log management. Primary NSPM sensor for the range.",
-      "deploy": {
-        "type": "linux-container",
-        "image": "securityonionsolutions/so-manager:latest",
-        "mem_limit": "8g",
-        "volumes": ["./data/securityonion:/nsm"],
-        "notes": "Security Onion ships its own Docker-based installer (so-setup). Use standalone mode. Reduced from 32 GB VM to 8 GB — sufficient for a small range with moderate traffic volume."
-      },
-      "interfaces": [
-        {"network": "SIEM","ip": "192.168.66.26/24"}
       ]
     },
     "HN-SIEM-Splunk": {
@@ -581,7 +558,7 @@
           "SPLUNK_PASSWORD": "changeme123"
         },
         "volumes": ["./data/splunk:/opt/splunk/var"],
-        "notes": "Reduced from 16 GB VM to 4 GB container. Free license caps at 500 MB/day ingest — sufficient for a range. Omit from low-RAM profiles and use Security Onion only."
+        "notes": "Reduced from 16 GB VM to 4 GB container. Free license caps at 500 MB/day ingest — sufficient for a range."
       },
       "interfaces": [
         {"network": "SIEM","ip": "192.168.66.50/24"}
@@ -592,7 +569,7 @@
       "CPUs": "1",
       "Memory (GB)": "0.25",
       "HDD Size (GB)": "10",
-      "description": "Central syslog aggregation server. Receives logs from all blue hosts and forwards to Splunk. Removed QRadar reference — not deployed in this range.",
+      "description": "Central syslog aggregation server. Receives logs from all blue hosts and forwards to Splunk.",
       "deploy": {
         "type": "linux-container",
         "image": "rsyslog/syslog_appliance_alpine:latest",
@@ -635,15 +612,15 @@
     "_note": "Use Docker Compose profiles to run scenario-specific subsets and stay within 32 GB RAM.",
     "core": {
       "description": "Minimum viable range — covers lateral movement, AD attacks, credential dumping. ~20 GB RAM.",
-      "services": ["HN-SCN","HN-FW-DMZ","HN-FW-Central","HN-SRV-DC01","HN-USER-WKS-02","HN-SIEM-SecurityOnion","HN-SIEM-Rsyslog"]
+      "services": ["HN-SCN","HN-FW-DMZ","HN-FW-Central","HN-SRV-DC01","HN-USER-WKS-02","HN-SIEM-Splunk","HN-SIEM-Rsyslog"]
     },
     "web-attack": {
       "description": "Adds DMZ web servers and DB for initial access → pivot scenarios. ~28 GB RAM.",
-      "services": ["core", "HN-BRDR-Blue-Router","HN-DMZ-Web01","HN-DMZ-Web03","HN-DMZ-DNS","HN-DMZ-Mail-Relay","HN-SRV-Exchange","HN-DB-DB01"]
+      "services": ["core", "HN-BRDR-Router","HN-DMZ-Web01","HN-DMZ-Web03","HN-DMZ-DNS","HN-DMZ-Mail-Relay","HN-SRV-Exchange","HN-DB-DB01"]
     },
     "full": {
       "description": "All services. Requires ~64 GB RAM — suitable for cloud or future hardware upgrade.",
       "services": ["all"]
     }
   }
-}
+};
