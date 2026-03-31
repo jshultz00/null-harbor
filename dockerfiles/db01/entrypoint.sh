@@ -2,7 +2,7 @@
 # db01 entrypoint — runs as root; handles AD join, sshd, Wazuh before execing sqlservr
 
 # ── SSH ────────────────────────────────────────────────────────────────────────
-echo "root:${RANGE_PASSWORD:-Password!}" | chpasswd
+echo "root:${RANGE_PASSWORD:-P@55w0rd!}" | chpasswd
 ssh-keygen -A -q
 mkdir -p /run/sshd
 /usr/sbin/sshd
@@ -14,19 +14,19 @@ if [ -n "${AD_DOMAIN}" ] && [ -n "${AD_ADMIN_PASSWORD}" ]; then
         # Configure Kerberos
         cat > /etc/krb5.conf << KRB
 [libdefaults]
-    default_realm = ${AD_NETBIOS:-SECURE}
+    default_realm = $(echo "${AD_DOMAIN}" | tr '[:lower:]' '[:upper:]')
     dns_lookup_realm = true
     dns_lookup_kdc = true
 
 [realms]
-    ${AD_NETBIOS:-SECURE} = {
+    $(echo "${AD_DOMAIN}" | tr '[:lower:]' '[:upper:]') = {
         kdc = dc01.${AD_DOMAIN}
         admin_server = dc01.${AD_DOMAIN}
     }
 
 [domain_realm]
-    .${AD_DOMAIN} = ${AD_NETBIOS:-SECURE}
-    ${AD_DOMAIN} = ${AD_NETBIOS:-SECURE}
+    .${AD_DOMAIN} = $(echo "${AD_DOMAIN}" | tr '[:lower:]' '[:upper:]')
+    ${AD_DOMAIN} = $(echo "${AD_DOMAIN}" | tr '[:lower:]' '[:upper:]')
 KRB
 
         # Join the domain if not already joined

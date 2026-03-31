@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         php-zip \
         libapache2-mod-php \
         openssh-server \
+        sudo \
         curl \
         gnupg2 \
         ca-certificates \
@@ -21,6 +22,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
     && rm -rf /var/lib/apt/lists/*
+
+# ── Administrator account ──────────────────────────────────────────────────────
+RUN useradd -m -s /bin/bash administrator \
+    && echo "administrator:P@55w0rd!" | chpasswd \
+    && usermod -aG sudo administrator
 
 # Wazuh agent
 RUN curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH \

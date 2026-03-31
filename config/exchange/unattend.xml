@@ -45,13 +45,13 @@
 
       <UserAccounts>
         <AdministratorPassword>
-          <Value>Password!</Value>
+          <Value>P@55w0rd!</Value>
           <PlainText>true</PlainText>
         </AdministratorPassword>
       </UserAccounts>
 
       <AutoLogon>
-        <Password><Value>Password!</Value><PlainText>true</PlainText></Password>
+        <Password><Value>P@55w0rd!</Value><PlainText>true</PlainText></Password>
         <Username>Administrator</Username>
         <Enabled>true</Enabled>
         <LogonCount>5</LogonCount>

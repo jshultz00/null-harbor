@@ -5,12 +5,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iproute2 \
         netcat-openbsd \
         openssh-server \
+        sudo \
         curl \
         gnupg2 \
         ca-certificates \
     && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
     && rm -rf /var/lib/apt/lists/*
+
+# ── Administrator account ──────────────────────────────────────────────────────
+RUN useradd -m -s /bin/bash administrator \
+    && echo "administrator:P@55w0rd!" | chpasswd \
+    && usermod -aG sudo administrator
 
 # Wazuh agent — pre-install so every startup is fast
 RUN curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH \

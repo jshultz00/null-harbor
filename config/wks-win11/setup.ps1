@@ -6,7 +6,7 @@ Write-Host "[wks-win11] Starting setup at $(Get-Date)"
 
 if (-not (Get-WmiObject -Class Win32_ComputerSystem).PartOfDomain) {
     $cred = New-Object System.Management.Automation.PSCredential(
-        "SECURE\Administrator", (ConvertTo-SecureString "Password!" -AsPlainText -Force))
+        "SECURE\Administrator", (ConvertTo-SecureString "P@55w0rd!" -AsPlainText -Force))
     for ($i = 1; $i -le 20; $i++) {
         try { Add-Computer -DomainName "secure.net" -Credential $cred -Force -ErrorAction Stop; break }
         catch { Write-Host "  Attempt $i failed — retrying in 60s..."; Start-Sleep 60 }

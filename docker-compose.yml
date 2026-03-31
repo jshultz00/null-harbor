@@ -6,11 +6,9 @@
 #   2. Linux host with KVM enabled for Windows/macOS VMs
 #
 # Usage:
-#   make up                     # core profile (~20 GB RAM)
-#   make up PROFILE=web-attack  # adds DMZ + DB (~28 GB RAM)
-#   make up PROFILE=full        # everything (~64 GB RAM)
-#   make down                   # stop, preserve Windows disk volumes
-#   make reset                  # full teardown including disk volumes
+#   make up     # start everything (~64 GB RAM)
+#   make down   # stop, preserve Windows disk volumes
+#   make reset  # full teardown including disk volumes
 #
 # Service names match the machine IDs in network_map.js.
 # All secrets are in .env — see .env.example for reference.
@@ -25,17 +23,17 @@ networks:
   main:
     driver: bridge
     ipam:
-      config: [{subnet: "17.93.8.0/29"}]
+      config: [{subnet: "17.93.8.0/29", gateway: "17.93.8.6"}]
 
   router_dmz:
     driver: bridge
     ipam:
-      config: [{subnet: "130.2.2.0/24"}]
+      config: [{subnet: "130.2.2.0/24", gateway: "130.2.2.254"}]
 
   fw_link:
     driver: bridge
     ipam:
-      config: [{subnet: "192.168.254.0/30"}]
+      config: [{subnet: "192.168.254.0/24"}]
 
   dmz_internal:
     driver: bridge
@@ -47,7 +45,7 @@ networks:
   c2:
     driver: bridge
     ipam:
-      config: [{subnet: "172.16.0.0/24"}]
+      config: [{subnet: "172.16.0.0/24", gateway: "172.16.0.254"}]
 
   management:
     driver: bridge
@@ -57,7 +55,7 @@ networks:
   server:
     driver: bridge
     ipam:
-      config: [{subnet: "192.168.200.0/24"}]
+      config: [{subnet: "192.168.200.0/24", gateway: "192.168.200.254"}]
 
   user:
     driver: bridge
@@ -94,7 +92,6 @@ services:
     container_name: SCENARIO
     build: ./dockerfiles/scenario
     image: cyber-range/scenario:local
-    profiles: [core, web-attack, full]
     hostname: scenario
     cap_add: [NET_ADMIN, NET_RAW]
     mem_limit: 6g
@@ -111,9 +108,6 @@ services:
       - ./www:/var/www/html
     environment:
       - RANGE_PASSWORD=${RANGE_PASSWORD}
-      - WAZUH_MANAGER=${WAZUH_MANAGER}
-      - WAZUH_ENROLLMENT_PSK=${WAZUH_ENROLLMENT_PSK}
-      - WAZUH_AGENT_NAME=scenario
     ports:
       - "2222:22"   # SSH — trainer/developer access to the Kali scenario container
     restart: unless-stopped
@@ -122,7 +116,6 @@ services:
   router:
     container_name: ROUTER
     image: frrouting/frr:latest
-    profiles: [web-attack, full]
     hostname: router
     cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
     mem_limit: 256m
@@ -143,7 +136,6 @@ services:
     container_name: FW-DMZ
     build: ./dockerfiles/fw
     image: cyber-range/fw:local
-    profiles: [core, web-attack, full]
     hostname: fw-dmz
     cap_add: [NET_ADMIN, NET_RAW]
     mem_limit: 256m
@@ -171,7 +163,6 @@ services:
     container_name: FW-CORE
     build: ./dockerfiles/fw
     image: cyber-range/fw:local
-    profiles: [core, web-attack, full]
     hostname: fw-core
     cap_add: [NET_ADMIN, NET_RAW]
     mem_limit: 256m
@@ -206,7 +197,6 @@ services:
     container_name: WEB-LIN
     build: ./dockerfiles/web-lin
     image: cyber-range/web-lin:local
-    profiles: [web-attack, full]
     hostname: web-lin
     mem_limit: 512m
     cpus: 1
@@ -230,7 +220,6 @@ services:
   web-win:
     container_name: WEB-WIN
     image: ghcr.io/dockur/windows
-    profiles: [web-attack, full]
     hostname: web-win
     mem_limit: 4g
     cpus: 2
@@ -260,7 +249,6 @@ services:
   dns-dmz:
     container_name: DNS-DMZ
     image: ghcr.io/dockur/windows
-    profiles: [web-attack, full]
     hostname: dns-dmz
     mem_limit: 2g
     cpus: 1
@@ -287,7 +275,6 @@ services:
   mail-relay:
     container_name: MAIL-RELAY
     image: boky/postfix
-    profiles: [web-attack, full]
     hostname: mail-relay
     mem_limit: 256m
     networks:
@@ -309,7 +296,6 @@ services:
   dc01:
     container_name: DC01
     image: ghcr.io/dockur/windows
-    profiles: [core, web-attack, full]
     hostname: dc01
     mem_limit: 4g
     cpus: 2
@@ -343,7 +329,6 @@ services:
   exchange:
     container_name: EXCHANGE
     image: ghcr.io/dockur/windows
-    profiles: [web-attack, full]
     hostname: exchange
     mem_limit: 8g
     cpus: 4
@@ -371,7 +356,6 @@ services:
   fileserver:
     container_name: FILESERVER
     image: ghcr.io/dockur/windows
-    profiles: [full]
     hostname: fileserver
     mem_limit: 2g
     cpus: 1
@@ -402,7 +386,6 @@ services:
     container_name: DB01
     build: ./dockerfiles/db01
     image: cyber-range/db01:local
-    profiles: [web-attack, full]
     hostname: db01
     mem_limit: 4g
     cpus: 2
@@ -431,7 +414,6 @@ services:
     container_name: WKS-LINUX
     build: ./dockerfiles/wks-linux
     image: cyber-range/wks-linux:local
-    profiles: [full]
     hostname: wks-linux
     mem_limit: 1g
     cpus: 1
@@ -449,7 +431,6 @@ services:
   wks-win10:
     container_name: WKS-WIN10
     image: ghcr.io/dockur/windows
-    profiles: [core, web-attack, full]
     hostname: wks-win10
     mem_limit: 4g
     cpus: 2
@@ -477,7 +458,6 @@ services:
   wks-win11:
     container_name: WKS-WIN11
     image: ghcr.io/dockur/windows
-    profiles: [full]
     hostname: wks-win11
     mem_limit: 4g
     cpus: 2
@@ -505,7 +485,6 @@ services:
   wks-macos:
     container_name: WKS-MACOS
     image: dockurr/macos
-    profiles: [full]
     hostname: wks-macos
     mem_limit: 4g
     cpus: 2
@@ -540,7 +519,6 @@ services:
   wazuh.manager:
     container_name: WAZUH-MANAGER
     image: wazuh/wazuh-manager:${WAZUH_VERSION}
-    profiles: [core, web-attack, full]
     hostname: wazuh.manager
     mem_limit: 2g
     cpus: 2
@@ -560,6 +538,7 @@ services:
       SSL_KEY: "/etc/ssl/wazuh.manager-key.pem"
       API_USERNAME: "wazuh-wui"
       API_PASSWORD: ${WAZUH_API_PASSWORD}
+      WAZUH_ENROLLMENT_PSK: ${WAZUH_ENROLLMENT_PSK}
     volumes:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
@@ -568,6 +547,7 @@ services:
       - ./config/wazuh/certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
       - ./config/wazuh/certs/wazuh.manager.pem:/etc/ssl/wazuh.manager.pem:ro
       - ./config/wazuh/certs/wazuh.manager-key.pem:/etc/ssl/wazuh.manager-key.pem:ro
+      - ./config/wazuh/authd.pass:/var/ossec/etc/authd.pass:ro
     ports:
       - "1514:1514"     # Agent event forwarding
       - "1515:1515"     # Agent enrollment
@@ -577,7 +557,6 @@ services:
   wazuh.indexer:
     container_name: WAZUH-INDEXER
     image: wazuh/wazuh-indexer:${WAZUH_VERSION}
-    profiles: [core, web-attack, full]
     hostname: wazuh.indexer
     mem_limit: 2g
     cpus: 2
@@ -608,7 +587,6 @@ services:
   wazuh.dashboard:
     container_name: WAZUH-DASHBOARD
     image: wazuh/wazuh-dashboard:${WAZUH_VERSION}
-    profiles: [core, web-attack, full]
     hostname: wazuh.dashboard
     mem_limit: 1g
     networks:
@@ -640,7 +618,6 @@ services:
   soc-ws:
     container_name: SOC-WS
     image: ghcr.io/dockur/windows
-    profiles: [core, web-attack, full]
     hostname: soc-ws
     mem_limit: 4g
     cpus: 2
