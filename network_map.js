@@ -182,8 +182,7 @@ const NETWORK_MAP_DATA = {
       },
       "interfaces": [
         {"network": "C2",           "ip": "172.16.0.40/24"},
-        {"network": "DMZ_Internal", "ip": "172.16.100.10/24"},
-        {"network": "DMZ_External", "ip": "130.2.2.4/24"}
+        {"network": "DMZ_Internal", "ip": "172.16.100.10/24"}
       ]
     },
     "web-win": {
@@ -207,8 +206,7 @@ const NETWORK_MAP_DATA = {
       },
       "interfaces": [
         {"network": "C2",           "ip": "172.16.0.42/24"},
-        {"network": "DMZ_Internal", "ip": "172.16.100.12/24"},
-        {"network": "DMZ_External", "ip": "130.2.2.12/24"}
+        {"network": "DMZ_Internal", "ip": "172.16.100.12/24"}
       ]
     },
     "dns-dmz": {
@@ -224,8 +222,7 @@ const NETWORK_MAP_DATA = {
       },
       "interfaces": [
         {"network": "C2",           "ip": "172.16.0.44/24"},
-        {"network": "DMZ_Internal", "ip": "172.16.100.6/24"},
-        {"network": "DMZ_External", "ip": "130.2.2.6/24"}
+        {"network": "DMZ_Internal", "ip": "172.16.100.6/24"}
       ]
     },
     "mail-relay": {
@@ -245,8 +242,7 @@ const NETWORK_MAP_DATA = {
       },
       "interfaces": [
         {"network": "C2",           "ip": "172.16.0.45/24"},
-        {"network": "DMZ_Internal", "ip": "172.16.100.8/24"},
-        {"network": "DMZ_External", "ip": "130.2.2.20/24"}
+        {"network": "DMZ_Internal", "ip": "172.16.100.8/24"}
       ]
     },
     "dc01": {
@@ -586,17 +582,16 @@ const NETWORK_MAP_DATA = {
     ]
   },
   "profiles": {
-    "_note": "Use Docker Compose profiles to run scenario-specific subsets and stay within 32 GB RAM.",
-    "core": {
-      "description": "Minimum viable range — covers lateral movement, AD attacks, credential dumping. ~20 GB RAM.",
-      "services": ["scenario","fw-dmz","fw-core","dc01","wks-win10","wazuh"]
-    },
-    "web-attack": {
-      "description": "Adds DMZ web servers and DB for initial access → pivot scenarios. ~28 GB RAM.",
-      "services": ["core", "router","web-lin","web-win","dns-dmz","mail-relay","exchange","db01"]
+    "_note": "Use Docker Compose profiles to run subsets of the range. 'make up-minimal' or 'make up' (full).",
+    "minimal": {
+      "description": "Starting point — AD domain, one Windows workstation, scenario engine. ~18 GB RAM (without wks-win11: ~14 GB).",
+      "command": "make up-minimal",
+      "services": ["scenario","fw-core","dc01","wks-win10","wks-win11"],
+      "expansion_order": ["fileserver","wks-win11","exchange","router+fw-dmz+web-lin","wazuh+soc-ws","db01"]
     },
     "full": {
-      "description": "All services. Requires ~64 GB RAM — suitable for cloud or future hardware upgrade.",
+      "description": "All services. Requires ~64 GB RAM.",
+      "command": "make up",
       "services": ["all"]
     }
   }
