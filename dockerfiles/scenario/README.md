@@ -26,8 +26,6 @@ The scenario container is the most complex image in the range. It serves four ro
 ```dockerfile
 FROM kalilinux/kali-rolling AS base
 
-ARG WAZUH_VERSION=4.9.2
-
 # System packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core tools
@@ -77,11 +75,6 @@ RUN curl -s https://api.github.com/repos/coredns/coredns/releases/latest \
 # Saffron server binary
 COPY --from=saffron-build /opt/saffron/server /usr/local/bin/saffron-server
 
-# Wazuh agent
-RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add - && \
-    echo "deb https://packages.wazuh.com/4.x/apt/ stable main" > /etc/apt/sources.list.d/wazuh.list && \
-    apt-get update && apt-get install -y wazuh-agent=${WAZUH_VERSION}-1
-
 # Range scripts
 COPY entrypoint.sh /entrypoint.sh
 COPY Caddyfile /etc/caddy/Caddyfile
@@ -119,11 +112,11 @@ ns1             IN A  10.0.0.1
 dc01            IN A  10.20.20.100
 exchange        IN A  10.20.20.10
 fileserver      IN A  10.20.20.20
+mail-relay      IN A  10.10.10.20
 web-lin         IN A  10.10.10.10
 web-win         IN A  10.10.10.12
 wks-linux       IN A  10.30.30.10
-wks-win10       IN A  10.30.30.20
-wks-win11       IN A  10.30.30.30
+wks-win11       IN A  10.30.30.20
 db01            IN A  10.40.40.10
 wazuh           IN A  10.0.0.7
 EOF
@@ -138,18 +131,7 @@ python3 -m http.server 8000 --directory /srv/setup &
 # 5. Start Postfix (SMTP relay for phishing scenarios)
 postfix start
 
-# 6. Wazuh agent enrollment + start
-/var/ossec/bin/agent-auth \
-    -m "${WAZUH_MANAGER:-10.0.0.5}" \
-    -P "${WAZUH_ENROLLMENT_PSK}" \
-    -A "scenario"
-/var/ossec/bin/wazuh-control start
-
-# 7. Forward syslog to rsyslog
-echo "*.* @10.50.50.8:514" >> /etc/rsyslog.conf
-rsyslogd
-
-# Keep container alive
+# 6. Keep container alive
 exec tail -f /dev/null
 ```
 
@@ -211,7 +193,7 @@ attacker.com:53 {
 
 ---
 
-## Postfix (phishing-main.cf)
+## Postfix (postfix-main.cf)
 
 ```
 myhostname = mail.attacker.com
@@ -220,32 +202,38 @@ myorigin = $mydomain
 inet_interfaces = all
 relayhost =
 
-# Relay to Exchange (10.20.20.10) for internal delivery
+# Route secure.net mail through the DMZ mail relay (mail-relay container).
+# Traffic goes: scenario → 5.79.99.25:25 → fw-dmz DNAT → mail-relay:25 → Exchange.
+# This creates realistic SMTP log artifacts on both fw-dmz and mail-relay.
 transport_maps = hash:/etc/postfix/transport
-# transport file: secure.net  smtp:[10.20.20.10]:25
+# transport file: secure.net  smtp:[5.79.99.25]:25
 ```
 
-Scenario phase scripts send phishing emails via `swaks`:
+Scenario phase scripts send phishing emails via `swaks`, targeting the mail relay's external IP
+so the flow traverses fw-dmz's DNAT and mail-relay's Postfix — generating log artifacts at each hop:
 
 ```bash
 swaks \
     --to bwilson@secure.net \
     --from "it-support@attacker.com" \
-    --server 10.20.20.10 \
+    --server 5.79.99.25 \
     --body "Please click here to reset your password: http://9.53.99.1/reset" \
     --header "Subject: Urgent: Password Reset Required"
 ```
+
+> **Mail flow:** scenario (5.79.99.1) → fw-dmz DNAT (5.79.99.25:25 → 10.10.10.20:25) → mail-relay → Exchange (10.20.20.10:25)
+> Each hop produces SMTP log entries. Defenders see inbound SMTP from an external IP in fw-dmz and mail-relay logs before Exchange receives it.
 
 ---
 
 ## IP Aliases for Attacker Diversity
 
-Phase scripts add/remove IP aliases on the external interface (`eth1`, `9.53.99.0/24`) to present different source IPs:
+Phase scripts add/remove IP aliases on the external interface (`eth1`, `5.79.99.0/24`) to present different source IPs:
 
 ```bash
 # Add alias for this phase's attacker persona
-ip addr add 9.53.99.10/24 dev eth1 label eth1:phase2
-# Later: ip addr del 9.53.99.10/24 dev eth1
+ip addr add 5.79.99.10/24 dev eth1 label eth1:phase2
+# Later: ip addr del 5.79.99.10/24 dev eth1
 ```
 
-For IPs outside `9.53.99.0/24`, the SNAT chain on fw-dmz is used instead (see [config/fw-dmz/README.md](../../config/fw-dmz/README.md)).
+For IPs outside `5.79.99.0/24`, the SNAT chain on fw-dmz is used instead (see [config/fw-dmz/README.md](../../config/fw-dmz/README.md)).

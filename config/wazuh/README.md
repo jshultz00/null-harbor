@@ -89,12 +89,13 @@ All `.pem` files are bind-mounted into their respective containers as `/etc/ssl/
   <connection>syslog</connection>
   <port>514</port>
   <protocol>udp</protocol>
-  <allowed-ips>10.0.0.0/24</allowed-ips>
   <allowed-ips>10.50.50.0/24</allowed-ips>
 </remote>
 ```
 
-This listener receives syslog from rsyslog (`10.50.50.8`) which aggregates logs from firewall containers (fw-dmz, fw-core) and Linux containers.
+This listener receives syslog only from the SIEM segment (`10.50.50.8` is rsyslog). The management network (`10.0.0.0/24`) is not an allowed source — rsyslog forwards via its SIEM-segment interface, and the rsyslog config drops any management-sourced logs before forwarding as defense-in-depth.
+
+> **Invariant:** Wazuh must never receive or index events with 10.0.0.x as source or destination. Enforcement layers: (1) nftables accepts management traffic before log rules, (2) rsyslog drops any 10.0.0.x logs before forwarding, (3) this listener does not accept connections from 10.0.0.0/24.
 
 ### Vulnerability Detection
 
@@ -181,7 +182,7 @@ Linux containers enroll with Wazuh at container start via `wazuh-agentd`:
 
 ```bash
 /var/ossec/bin/agent-auth \
-  -m 10.0.0.5 \
+  -m 10.50.50.5 \
   -P "${WAZUH_ENROLLMENT_PSK}" \
   -A "$(hostname)"
 ```

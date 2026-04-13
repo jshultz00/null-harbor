@@ -1,3 +1,9 @@
+# config/windows/wks-win10/ — DEPRECATED
+
+> **This machine has been removed from the range.** The users segment now contains `wks-linux` and `wks-win11`. This directory is kept for reference only and is not deployed.
+
+---
+
 # config/windows/wks-win10/ — Windows 10 Workstation Setup
 
 wks-win10 is a Windows 10 Pro workstation (22H2) domain-joined to `secure.net`. It represents a standard corporate endpoint and is the primary blue team access point for Windows forensics, EDR analysis, and credential harvesting scenarios.

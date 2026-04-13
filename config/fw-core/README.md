@@ -8,7 +8,7 @@ This directory contains `nftables.conf` for the `fw-core` container. fw-core is 
 
 | Interface | Segment | Subnet | IP |
 |-----------|---------|--------|-----|
-| `eth0` | control | 10.0.0.0/24 | 10.0.0.11 |
+| `eth0` | management (OOB — not visible to participants) | 10.0.0.0/24 | 10.0.0.11 |
 | `eth1` | dmz | 10.10.10.0/24 | 10.10.10.2 |
 | `eth2` | server | 10.20.20.0/24 | 10.20.20.1 |
 | `eth3` | users | 10.30.30.0/24 | 10.30.30.1 |
@@ -30,8 +30,11 @@ fw-core is deliberately **permissive** — the goal is to generate realistic tra
 | users | server | accept + log | Workstation-to-DC, workstation-to-exchange |
 | users | dmz | accept + log | User browsing internal web |
 | server | db | accept + log | App servers querying MSSQL |
-| * | siem | accept | Syslog and Wazuh traffic always allowed |
-| * | control | accept | Saffron callbacks always allowed |
+| * | siem | accept + log | Syslog and Wazuh traffic |
+| management | * | accept, **no log** | Silently accepted before log rule — never visible in SIEM |
+| * | management | accept, **no log** | Silently accepted before log rule — never visible in SIEM |
+
+> **Invariant:** Management traffic (eth0 / 10.0.0.0/24) must never appear in `FW-CORE-FWD:` log lines. This is enforced by accepting it before the `log` statement in the forward chain. Defenders must not be able to discover the OOB management plane from firewall logs.
 
 ---
 
@@ -45,7 +48,7 @@ table inet filter {
 
         ct state established,related accept
 
-        # Control segment always allowed (Saffron)
+        # Management interface — accepted before any logging
         iifname "eth0" accept
 
         # ICMP
@@ -59,14 +62,13 @@ table inet filter {
         # Drop invalid state
         ct state invalid drop
 
-        # Log all inter-segment traffic
-        log prefix "FW-CORE-FWD: " flags all
-
-        # Explicit SIEM access — all sources
-        ip daddr 10.50.50.0/24 accept
-
-        # Explicit control access — all sources
+        # Management traffic — accepted silently before any logging
+        # 10.0.0.0/24 must never appear in FW-CORE-FWD log lines
+        iifname "eth0" accept
         ip daddr 10.0.0.0/24 accept
+
+        # Log all inter-segment traffic (defenders analyze these)
+        log prefix "FW-CORE-FWD: " flags all
     }
 
     chain output {
@@ -97,8 +99,9 @@ fw-core container stdout
 Key log patterns Wazuh rules should detect:
 - `FW-CORE-FWD:` with `daddr 10.20.20.100` on non-standard ports (credential stuffing toward DC)
 - High-frequency new connections from single source (lateral movement scanning)
-- `FW-CORE-FWD:` with `daddr 10.50.50.0/24` from unexpected sources (SIEM targeting)
 - SMB (`dport 445`) from user segment to server segment (ransomware precursor)
+
+Management traffic (10.0.0.0/24) is silently accepted before the log rule and must never appear in these logs.
 
 ---
 

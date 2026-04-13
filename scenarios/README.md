@@ -51,12 +51,12 @@ mitre:
 targets:
   scenario:    "10.0.0.1"                # Must match machine control IPs
   web-lin:     "10.10.10.10"
-  wks-win10:   "10.30.30.20"
+  wks-win11:   "10.30.30.20"
 
 required_env:
   - ATTACKER_IP
   - TARGET_WEB_LIN
-  - TARGET_WKS_WIN10
+  - TARGET_WKS_WIN11
 
 phases:
   - slug:        "01_recon"

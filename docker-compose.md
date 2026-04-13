@@ -222,6 +222,26 @@ ports:
 
 ---
 
+### mail-relay
+
+```
+build: dockerfiles/mail-relay
+container_name: mail-relay
+hostname: mail-relay
+networks:
+  control:    ipv4_address: 10.0.0.45
+  dmz:        ipv4_address: 10.10.10.20
+volumes:
+  - ./config/mail-relay/main.cf:/etc/postfix/main.cf:ro
+environment:
+  - WAZUH_MANAGER=10.0.0.5
+  - COMMANDLY_SERVER=http://10.0.0.1:8080
+```
+
+DMZ mail relay (Postfix). Accepts inbound SMTP from the fake internet (DNAT: `5.79.99.25:25` → `10.10.10.20:25` at fw-dmz) and relays to Exchange (`10.20.20.10`) for internal delivery. Provides realistic SMTP traffic artifacts for phishing and email-based attack scenarios. Wazuh agent pre-baked.
+
+---
+
 ### web-lin
 
 ```
@@ -316,7 +336,6 @@ Windows VMs use KVM acceleration and require `/dev/kvm`. `SETUP_SERVER` points t
 | exchange | 8G | 4 | 128G |
 | fileserver | 2G | 2 | 64G |
 | web-win | 2G | 2 | 64G |
-| wks-win10 | 4G | 2 | 64G |
 | wks-win11 | 4G | 2 | 64G |
 
 ---
@@ -337,7 +356,6 @@ volumes:
   exchange-data:        driver: local, device: ./data/windows/exchange
   fileserver-data:      driver: local, device: ./data/windows/fileserver
   web-win-data:         driver: local, device: ./data/windows/web-win
-  wks-win10-data:       driver: local, device: ./data/windows/wks-win10
   wks-win11-data:       driver: local, device: ./data/windows/wks-win11
 ```
 

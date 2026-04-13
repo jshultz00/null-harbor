@@ -20,7 +20,6 @@ data/
     ├── exchange/     # KVM disk image — ~60 GB after Exchange install
     ├── fileserver/   # KVM disk image — ~15 GB
     ├── web-win/      # KVM disk image — ~15 GB
-    ├── wks-win10/    # KVM disk image — ~20 GB
     └── wks-win11/    # KVM disk image — ~20 GB
 ```
 
@@ -34,7 +33,6 @@ data/
 | windows/exchange | ~60 GB | Exchange databases grow with email activity |
 | windows/fileserver | ~15 GB | Small — mostly file share content |
 | windows/web-win | ~15 GB | Small — IIS + app |
-| windows/wks-win10 | ~20 GB | Windows 10 + user profiles |
 | windows/wks-win11 | ~20 GB | Windows 11 + user profiles |
 | wazuh/indexer | 5–20 GB | Grows with log volume; configure index lifecycle |
 | wazuh/logs | 1–5 GB | Prunable; contains alert archives |

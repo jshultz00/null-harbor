@@ -6,47 +6,54 @@ A portable, sandboxed cyber range for incident response and red team training. R
 
 ## Architecture Overview
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Linux services | Docker containers | Firewalls, SIEM, web servers, workstations, DB |
-| Windows machines | `dockur/windows` KVM VMs | DC, Exchange, fileserver, workstations |
-| OOB management | Saffron agent/server | Replaces SaltStack; Go binary, REST API |
-| Participant access | WireGuard VPN | Participants bring their own laptop as SOC WS |
-| Attacker platform | Kali (scenario container) | Full toolset + fake internet + Saffron server |
+
+| Layer              | Technology                | Notes                                          |
+| ------------------ | ------------------------- | ---------------------------------------------- |
+| Linux services     | Docker containers         | Firewalls, SIEM, web servers, workstations, DB |
+| Windows machines   | `dockur/windows` KVM VMs  | DC, Exchange, fileserver, workstations         |
+| OOB management     | Saffron agent/server      | Replaces SaltStack; Go binary, REST API        |
+| Participant access | WireGuard VPN             | Participants bring their own laptop as SOC WS  |
+| Attacker platform  | Kali (scenario container) | Full toolset + fake internet + Saffron server  |
+
 
 ### Network Segments
 
-| Segment | Subnet | Purpose |
-|---------|--------|---------|
-| control | 10.0.0.0/24 | Saffron OOB — every machine has an interface here |
-| vpn | 10.99.0.0/24 | WireGuard participants |
-| external | 5.79.99.0/24 | Fake internet (scenario owns subnet; IP aliases for attacker diversity) |
-| dmz | 10.10.10.0/24 | DMZ web servers |
-| server | 10.20.20.0/24 | AD, Exchange, fileserver |
-| users | 10.30.30.0/24 | Workstations |
-| db | 10.40.40.0/24 | Database servers |
-| siem | 10.50.50.0/24 | Wazuh stack + rsyslog |
+
+| Segment  | Subnet        | Purpose                                                                 |
+| -------- | ------------- | ----------------------------------------------------------------------- |
+| management | 10.0.0.0/24 | Saffron OOB — every machine has an interface here; **hidden from participants** (not in WireGuard routes, not logged by firewalls, not indexed by SIEM) |
+| vpn      | 10.99.0.0/24  | WireGuard participants                                                  |
+| external | 5.79.99.0/24  | Fake internet (scenario owns subnet; IP aliases for attacker diversity) |
+| dmz      | 10.10.10.0/24 | DMZ web servers                                                         |
+| server   | 10.20.20.0/24 | AD, Exchange, fileserver                                                |
+| users    | 10.30.30.0/24 | Workstations                                                            |
+| db       | 10.40.40.0/24 | Database servers                                                        |
+| siem     | 10.50.50.0/24 | Wazuh stack + rsyslog                                                   |
+
 
 ### Machine IPs
 
-| Machine | Control IP | Segment IP(s) |
-|---------|-----------|---------------|
-| scenario | 10.0.0.1 | 5.79.99.1 (external) |
-| fw-dmz | 10.0.0.10 | 5.79.99.2, 10.10.10.1 |
-| fw-core | 10.0.0.11 | 10.10.10.2, 10.20.20.1, 10.30.30.1, 10.40.40.1, 10.50.50.1 |
-| wireguard | 10.0.0.20 | 10.99.0.1 |
-| wazuh.manager | 10.0.0.5 | 10.50.50.5 |
-| wazuh.indexer | 10.0.0.6 | 10.50.50.6 |
-| wazuh.dashboard | 10.0.0.7 | 10.50.50.7 |
-| rsyslog | 10.0.0.8 | 10.50.50.8 |
-| web-lin | 10.0.0.40 | 10.10.10.10 |
-| web-win | 10.0.0.42 | 10.10.10.12 |
-| dc01 | 10.0.0.70 | 10.20.20.100 |
-| exchange | 10.0.0.72 | 10.20.20.10 |
-| fileserver | 10.0.0.74 | 10.20.20.20 |
-| db01 | 10.0.0.30 | 10.40.40.10 |
-| wks-linux | 10.0.0.100 | 10.30.30.10 |
-| wks-win11 | 10.0.0.101 | 10.30.30.20 |
+
+| Machine         | Control IP | Segment IP(s)                                              |
+| --------------- | ---------- | ---------------------------------------------------------- |
+| scenario        | 10.0.0.1   | 5.79.99.1 (external)                                       |
+| fw-dmz          | 10.0.0.10  | 5.79.99.2, 10.10.10.1                                      |
+| fw-core         | 10.0.0.11  | 10.10.10.2, 10.20.20.1, 10.30.30.1, 10.40.40.1, 10.50.50.1 |
+| wireguard       | 10.0.0.20  | 10.99.0.1                                                  |
+| wazuh.manager   | 10.0.0.5   | 10.50.50.5                                                 |
+| wazuh.indexer   | 10.0.0.6   | 10.50.50.6                                                 |
+| wazuh.dashboard | 10.0.0.7   | 10.50.50.7                                                 |
+| rsyslog         | 10.0.0.8   | 10.50.50.8                                                 |
+| mail-relay      | 10.0.0.45  | 10.10.10.20                                                |
+| web-lin         | 10.0.0.40  | 10.10.10.10                                                |
+| web-win         | 10.0.0.42  | 10.10.10.12                                                |
+| dc01            | 10.0.0.70  | 10.20.20.100                                               |
+| exchange        | 10.0.0.72  | 10.20.20.10                                                |
+| fileserver      | 10.0.0.74  | 10.20.20.20                                                |
+| db01            | 10.0.0.30  | 10.40.40.10                                                |
+| wks-linux       | 10.0.0.100 | 10.30.30.10                                                |
+| wks-win11       | 10.0.0.101 | 10.30.30.20                                                |
+
 
 ---
 
@@ -119,7 +126,6 @@ local_cyber_range/
 │       ├── exchange/
 │       ├── fileserver/
 │       ├── web-win/
-│       ├── wks-win10/
 │       └── wks-win11/
 ├── dockerfiles/
 │   ├── scenario/               # Kali attacker + Saffron server + fake internet
@@ -134,7 +140,7 @@ local_cyber_range/
 ├── www/                        # Static files served by scenario container (HTTPS)
 ├── data/                       # Docker volume mounts — gitignored
 ├── misc/
-│   ├── crs_scripts/            # cr_* helper scripts (Saffron wrappers)
+│   ├── crs/                    # cr_* helper scripts (Saffron wrappers)
 │   └── saffron/                # Saffron server + agent binaries and source
 ├── network_map/                # Interactive topology viewer (HTML)
 └── _specs/                     # Feature specs
@@ -144,18 +150,26 @@ local_cyber_range/
 
 ## Credentials
 
-| Machine | Username | Password | Protocol |
-|---------|---------|---------|---------|
-| wks-linux | devuser | P@55w0rd! | SSH :22 |
-| wks-linux | sysadmin | P@55w0rd! | SSH :22 |
-| web-lin | www-admin | P@55w0rd! | SSH :22 |
-| db01 | sa (MSSQL) | P@55w0rd! | TCP :1433 |
-| dc01 | Administrator | P@55w0rd! | RDP :3389 |
-| wks-win10 | SECURE\jsmith | P@55w0rd! | RDP :3389 |
-| wks-win10 | SECURE\mjones | P@55w0rd! | RDP :3389 |
-| wks-win11 | SECURE\bwilson | P@55w0rd! | RDP :3389 |
-| exchange | Administrator | P@55w0rd! | RDP :3389 |
-| fileserver | Administrator | P@55w0rd! | RDP :3389 |
+
+| Machine    | Username             | Password  | Protocol  |
+| ---------- | -------------------- | --------- | --------- |
+| wks-linux  | devuser              | P@55w0rd! | SSH :22   |
+| wks-linux  | jsmith               | P@55w0rd! | SSH :22   |
+| wks-linux  | administrator        | P@55w0rd! | SSH :22   |
+| web-lin    | administrator        | P@55w0rd! | SSH :22   |
+| db01       | sa (MSSQL)           | P@55w0rd! | TCP :1433 |
+| dc01       | SECURE\Administrator | P@55w0rd! | RDP :3389 |
+| dc01       | Administrator        | P@55w0rd! | RDP :3389 |
+| wks-win11  | Administrator        | P@55w0rd! | RDP :3389 |
+| wks-win11  | SECURE\jsmith        | P@55w0rd! | RDP :3389 |
+| wks-win11  | SECURE\mjones        | P@55w0rd! | RDP :3389 |
+| wks-win11  | SECURE\bwilson       | P@55w0rd! | RDP :3389 |
+| wks-win11  | SECURE\Administrator | P@55w0rd! | RDP :3389 |
+| exchange   | Administrator        | P@55w0rd! | RDP :3389 |
+| exchange   | SECURE\Administrator | P@55w0rd! | RDP :3389 |
+| fileserver | Administrator        | P@55w0rd! | RDP :3389 |
+| fileserver | SECURE\Administrator | P@55w0rd! | RDP :3389 |
+
 
 AD domain: `secure.net` / NetBIOS: `SECURE`
 
@@ -182,11 +196,13 @@ Phase scripts toggle these rules between phases. See [config/fw-dmz/README.md](c
 
 ## Hardware Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 8-core with VT-x/AMD-V | i9-14900K or equivalent |
-| RAM | 32 GB | 64 GB |
-| Disk | 300 GB NVMe | 500 GB+ NVMe |
-| KVM | Required | Required |
+
+| Component | Minimum                | Recommended             |
+| --------- | ---------------------- | ----------------------- |
+| CPU       | 8-core with VT-x/AMD-V | i9-14900K or equivalent |
+| RAM       | 32 GB                  | 64 GB                   |
+| Disk      | 300 GB NVMe            | 500 GB+ NVMe            |
+| KVM       | Required               | Required                |
+
 
 This range was designed for a single host: Intel i9-14900K, 62 GB RAM, 915 GB NVMe.

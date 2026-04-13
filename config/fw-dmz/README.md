@@ -8,7 +8,7 @@ This directory contains `nftables.conf` for the `fw-dmz` container. fw-dmz is th
 
 | Interface | Segment | Subnet | IP |
 |-----------|---------|--------|-----|
-| `eth0` | control | 10.0.0.0/24 | 10.0.0.10 |
+| `eth0` | management (OOB — not visible to participants) | 10.0.0.0/24 | 10.0.0.10 |
 | `eth1` | external | 9.53.99.0/24 | 9.53.99.2 |
 | `eth2` | dmz | 10.10.10.0/24 | 10.10.10.1 |
 
@@ -27,7 +27,7 @@ table inet filter {
         # Allow established/related
         ct state established,related accept
 
-        # Allow from control segment (Saffron management)
+        # Management interface — accepted before any logging
         iifname "eth0" accept
 
         # ICMP
@@ -38,11 +38,16 @@ table inet filter {
     chain forward {
         type filter hook forward priority 0; policy accept;
 
-        # Log all forwarded traffic (Wazuh ingests via syslog)
-        log prefix "FW-DMZ-FWD: " flags all
-
-        # Drop invalid
+        # Drop invalid state
         ct state invalid drop
+
+        # Management traffic — accepted silently before any logging
+        # 10.0.0.0/24 must never appear in FW-DMZ-FWD log lines
+        iifname "eth0" accept
+        ip daddr 10.0.0.0/24 accept
+
+        # Log all forwarded traffic (defenders analyze these via Wazuh)
+        log prefix "FW-DMZ-FWD: " flags all
     }
 
     chain output {
@@ -52,6 +57,8 @@ table inet filter {
 ```
 
 The `forward` chain is **permissive** — all traffic is forwarded. The primary security control is logging, not blocking. This matches training intent: defenders must detect attacks via SIEM, not have them silently blocked by the range.
+
+> **Invariant:** Management traffic (eth0 / 10.0.0.0/24) is accepted *before* the `log` statement and must never appear in `FW-DMZ-FWD:` log lines.
 
 ---
 

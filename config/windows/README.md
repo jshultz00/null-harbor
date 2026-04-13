@@ -91,7 +91,7 @@ Start-Service SaffronAgent
 | `exchange/` | Exchange 2019 | Exchange install on WS2022, mailboxes, connectors |
 | `fileserver/` | File Server | DFS shares, permissions, ransomware-bait files |
 | `web-win/` | Windows Web Server | IIS + ASPX app, service account |
-| `wks-win10/` | Windows 10 WS | Domain join, user profiles, Office-like apps |
+| `wks-win10/` | ~~Windows 10 WS~~ (deprecated — removed from range) | — |
 | `wks-win11/` | Windows 11 WS | Domain join, user profiles |
 
 See each machine's README for detailed stage-by-stage setup instructions.

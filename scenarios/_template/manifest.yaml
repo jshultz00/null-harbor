@@ -36,7 +36,7 @@ targets:
   scenario: "10.0.0.1"
   # Add target machines here, e.g.:
   # web-lin:  "10.10.10.10"
-  # wks-win10: "10.30.30.20"
+  # wks-win11: "10.30.30.20"
 
 # OPTIONAL: Environment variables that must be non-empty after sourcing env_vars.sh
 # range-scenario will check these before executing any phase and fail if any are missing
