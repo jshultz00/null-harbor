@@ -88,15 +88,14 @@ svg { display: block; }
     <div class="legend-bar">
       <div class="leg-item"><div class="leg-swatch" style="background:#2a9a51"></div>Linux</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#2a6dd2"></div>Windows</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#c46d1c"></div>Firewall/Router</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#7e57a0"></div>macOS</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#c46d1c"></div>Firewall</div>
       <div class="leg-divider"></div>
       <div class="leg-item"><div class="leg-swatch" style="background:#143060"></div>DMZ</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#10381c"></div>Server</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#181448"></div>SOC</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#34240c"></div>Users</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#101c3c"></div>SIEM</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#380c1c"></div>Database</div>
+      <div class="leg-item"><div class="leg-swatch" style="background:#0e2a3a"></div>VPN</div>
       <div class="leg-item"><div class="leg-swatch" style="background:#341870"></div>Scenario</div>
       <div class="leg-divider"></div>
       <div class="leg-item"><div class="leg-line"></div>Transit path</div>
@@ -153,10 +152,6 @@ const ZONE_CONFIG = _L.zones.map(zc => ({
   x: zc.x, y: zc.y, cols: zc.cols, nodeW: zc.nodeW, nodeH: zc.nodeH,
 }));
 
-const SEGMENT_TO_ZONE = Object.fromEntries(
-  _L.zones.map(zc => [zc.segment, { zoneId: zc.id, side: zc.connectorSide }])
-);
-
 const COLOR_LINUX         = _L.colors.nodeType.linux;
 const COLOR_WINDOWS       = _L.colors.nodeType.windows;
 const COLOR_MACOS         = _L.colors.nodeType.macos;
@@ -185,12 +180,11 @@ function classifyType(m) {
 function getChainRole(id, m) {
   const t = (m.deploy && m.deploy.type) || '';
   const nets = (m.interfaces || []).map(i => i.network);
-  if (t === 'linux-router') return 'router';
   if (t === 'linux-firewall') {
-    if (nets.includes('DMZ_Internal')) return 'fw-dmz';
-    if (nets.includes('Server')) return 'fw-central';
+    if (nets.includes('dmz') && nets.includes('external')) return 'fw-dmz';
+    if (nets.includes('server')) return 'fw-central';
   }
-  if (nets.includes('Scenario') || nets.includes('External')) return 'attack';
+  if (nets.includes('external')) return 'attack';
   return null;
 }
 
@@ -255,7 +249,7 @@ function computeLayout() {
   });
 
   // Build chain: attack -> router -> fw-dmz -> fw-central
-  const chainOrder = ['attack', 'router', 'fw-dmz', 'fw-central'];
+  const chainOrder = ['attack', 'fw-dmz', 'fw-central'];
   const chainNodes = [];
   chainOrder.forEach(role => {
     const found = allIds.filter(id => classified[id].chainRole === role);
@@ -317,7 +311,7 @@ function computeLayout() {
   const fwDmz = allIds.find(id => classified[id].chainRole === 'fw-dmz');
 
   if (fwCentral && layoutNodes[fwCentral]) {
-    ['Server', 'SOC', 'User', 'SIEM', 'DB'].forEach(zoneId => {
+    ['Server', 'VPN', 'Users', 'SIEM', 'DB'].forEach(zoneId => {
       if (zoneBounds[zoneId]) {
         zoneEdges.push({ from: fwCentral, toZone: zoneId });
       }
@@ -427,9 +421,8 @@ function renderDiagram(layout) {
     const fn = layoutNodes[from];
     const zb = zoneBounds[toZone];
     if (!fn || !zb) return;
-    const segKey = toZone === 'DMZ' ? 'DMZ_Internal' : toZone;
-    const zCfg = SEGMENT_TO_ZONE[segKey];
-    const side = zCfg ? zCfg.side : 'top';
+    const zCfgEntry = _L.zones.find(z => z.id === toZone);
+    const side = zCfgEntry ? zCfgEntry.connectorSide : 'top';
 
     const fx = fn.x + fn.w / 2;
     const fy = fn.y + fn.h / 2;
