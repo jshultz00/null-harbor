@@ -5,75 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Local Cyber Range — Network Map</title>
 <script src="network_map.js"></script>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
-.app { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr; height: 100vh; }
-.legend-bar { background: #0d1117; border-bottom: 1px solid #21262d; padding: 6px 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; flex-shrink: 0; }
-.leg-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #8b949e; white-space: nowrap; }
-.leg-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-.leg-swatch.outline { background: none !important; }
-.leg-divider { width: 1px; height: 14px; background: #30363d; align-self: center; }
-.leg-dash { width: 20px; height: 0; border-top: 2px dashed #6e40c9; flex-shrink: 0; }
-.leg-line { width: 20px; height: 0; border-top: 2px solid #58a6ff; flex-shrink: 0; }
-.header { grid-column: 1/-1; background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.header h1 { font-size: 1rem; font-weight: 600; color: #f0f6fc; white-space: nowrap; }
-.badge { font-size: 0.68rem; padding: 2px 8px; border-radius: 12px; border: 1px solid; white-space: nowrap; }
-.badge.ok   { color: #3fb950; border-color: #3fb950; }
-.badge.warn { color: #d29922; border-color: #d29922; }
-.badge.blue { color: #58a6ff; border-color: #58a6ff; }
-.badge.red  { color: #f85149; border-color: #f85149; }
-.canvas-wrap { overflow: auto; background: #0d1117; display: flex; flex-direction: column; }
-svg { display: block; }
-.sidebar { background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; display: flex; flex-direction: column; }
-.sidebar-tabs { display: flex; border-bottom: 1px solid #30363d; }
-.sidebar-tabs button { flex: 1; padding: 9px 4px; background: none; border: none; color: #8b949e; cursor: pointer; font-size: 0.76rem; border-bottom: 2px solid transparent; transition: all .15s; }
-.sidebar-tabs button.active { color: #f0f6fc; border-bottom-color: #388bfd; }
-.sidebar-tabs button:hover:not(.active) { color: #c9d1d9; }
-.tab-panel { display: none; padding: 12px; flex: 1; overflow-y: auto; }
-.tab-panel.active { display: block; }
-.card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 11px; margin-bottom: 10px; }
-.card h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .06em; color: #8b949e; margin-bottom: 7px; }
-.card p  { font-size: 0.8rem; color: #c9d1d9; line-height: 1.5; }
-.issue { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; font-size: 0.78rem; line-height: 1.4; color: #c9d1d9; }
-.issue .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-.dot.red    { background: #f85149; }
-.dot.yellow { background: #d29922; }
-.dot.green  { background: #3fb950; }
-.dot.blue   { background: #388bfd; }
-.dot.purple { background: #bc8cff; }
-.profile-btn { display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; font-size: 0.75rem; cursor: pointer; margin: 2px; transition: all .15s; }
-.profile-btn:hover { border-color: #388bfd; color: #58a6ff; }
-.profile-btn.active { background: #1c3555; border-color: #388bfd; color: #58a6ff; }
-#detail h2 { font-size: 0.92rem; color: #f0f6fc; margin-bottom: 2px; }
-#detail .os { font-size: 0.76rem; color: #8b949e; margin-bottom: 10px; }
-.detail-row { display: flex; gap: 6px; margin-bottom: 3px; font-size: 0.76rem; }
-.detail-label { color: #8b949e; min-width: 74px; }
-.detail-val   { color: #c9d1d9; }
-.iface-item   { background: #0d1117; border-radius: 4px; padding: 4px 8px; margin-bottom: 3px; font-size: 0.73rem; color: #8b949e; }
-.iface-item span { color: #58a6ff; }
-.deploy-box { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 8px; margin-top: 8px; }
-.deploy-box .dkey { font-size: 0.7rem; color: #8b949e; margin-bottom: 1px; }
-.deploy-box .dval { font-size: 0.76rem; color: #79c0ff; font-family: monospace; word-break: break-all; }
-.deploy-box .dnote { font-size: 0.73rem; color: #d29922; margin-top: 6px; line-height: 1.4; }
-.res-bar { background: #21262d; border-radius: 4px; height: 7px; overflow: hidden; margin-top: 3px; }
-.res-fill { height: 100%; border-radius: 4px; transition: width .3s; }
-.res-fill.green  { background: #3fb950; }
-.res-fill.yellow { background: #d29922; }
-.res-fill.red    { background: #f85149; }
-.type-pill { display: inline-block; font-size: 0.65rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
-.type-pill.linux   { background: #1a3a2a; color: #3fb950; border: 1px solid #3fb950; }
-.type-pill.windows { background: #1a2a3a; color: #58a6ff; border: 1px solid #58a6ff; }
-.type-pill.macos   { background: #2a1a3a; color: #bf91e8; border: 1px solid #bf91e8; }
-.type-pill.fw      { background: #3a2a1a; color: #d29922; border: 1px solid #d29922; }
-.node-group { cursor: pointer; }
-.node-group:hover .node-rect { filter: brightness(1.4); }
-.node-group.selected .node-rect { stroke-width: 2.5 !important; stroke: #f0f6fc !important; }
-.node-label { font-family: 'Segoe UI', sans-serif; font-size: 8.5px; fill: #e6edf3; pointer-events: none; font-weight: 500; }
-.node-sub   { font-family: 'Segoe UI', sans-serif; font-size: 7.5px; fill: #c9d1d9; pointer-events: none; }
-.zone-label { font-family: 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; opacity: .4; pointer-events: none; }
-.edge { stroke-width: 1.2; fill: none; }
-</style>
+<link rel="stylesheet" href="network_map.css">
 </head>
 <body>
 <div class="app">
@@ -85,23 +17,7 @@ svg { display: block; }
   </div>
 
   <div class="canvas-wrap" id="canvasWrap">
-    <div class="legend-bar">
-      <div class="leg-item"><div class="leg-swatch" style="background:#2a9a51"></div>Linux</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#2a6dd2"></div>Windows</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#c46d1c"></div>Firewall/Router</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#7e57a0"></div>macOS</div>
-      <div class="leg-divider"></div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#143060"></div>DMZ</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#10381c"></div>Server</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#181448"></div>SOC</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#34240c"></div>Users</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#101c3c"></div>SIEM</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#380c1c"></div>Database</div>
-      <div class="leg-item"><div class="leg-swatch" style="background:#341870"></div>Scenario</div>
-      <div class="leg-divider"></div>
-      <div class="leg-item"><div class="leg-line"></div>Transit path</div>
-      <div class="leg-item"><div style="width:20px;height:0;border-top:2px solid #4a5568;flex-shrink:0"></div>Segment link</div>
-    </div>
+    <div class="legend-bar" id="legend-bar"></div>
     <svg id="diagram"></svg>
   </div>
 
@@ -148,15 +64,6 @@ const ZONE_PAD      = _C.zonePad;
 const ZONE_LABEL_H  = _C.zoneLabelH;
 const NODE_GAP      = _C.nodeGap;
 
-const ZONE_CONFIG = _L.zones.map(zc => ({
-  id: zc.id, label: zc.label, color: zc.bgColor,
-  x: zc.x, y: zc.y, cols: zc.cols, nodeW: zc.nodeW, nodeH: zc.nodeH,
-}));
-
-const SEGMENT_TO_ZONE = Object.fromEntries(
-  _L.zones.map(zc => [zc.segment, { zoneId: zc.id, side: zc.connectorSide }])
-);
-
 const COLOR_LINUX         = _L.colors.nodeType.linux;
 const COLOR_WINDOWS       = _L.colors.nodeType.windows;
 const COLOR_MACOS         = _L.colors.nodeType.macos;
@@ -185,18 +92,18 @@ function classifyType(m) {
 function getChainRole(id, m) {
   const t = (m.deploy && m.deploy.type) || '';
   const nets = (m.interfaces || []).map(i => i.network);
-  if (t === 'linux-router') return 'router';
   if (t === 'linux-firewall') {
-    if (nets.includes('DMZ_Internal')) return 'fw-dmz';
-    if (nets.includes('Server')) return 'fw-central';
+    if (nets.includes('dmz') && nets.includes('external')) return 'fw-dmz';
+    if (nets.includes('server')) return 'fw-central';
   }
-  if (nets.includes('Scenario') || nets.includes('External')) return 'attack';
+  if (nets.includes('external')) return 'attack';
   return null;
 }
 
 function getZoneId(m) {
   const nets = new Set((m.interfaces || []).map(i => i.network));
   for (const zc of _L.zones) {
+    if (zc.renderMode === 'attackZone') continue;
     if (nets.has(zc.segment)) return zc.id;
   }
   return null;
@@ -240,6 +147,7 @@ function ramStr(ram) {
 function computeLayout() {
   const machines = NETWORK_MAP_DATA.machines;
   const allIds = Object.keys(machines);
+  const al = _L.autoLayout;
 
   // Classify each node
   const classified = {};
@@ -255,7 +163,7 @@ function computeLayout() {
   });
 
   // Build chain: attack -> router -> fw-dmz -> fw-central
-  const chainOrder = ['attack', 'router', 'fw-dmz', 'fw-central'];
+  const chainOrder = ['attack', 'fw-dmz', 'fw-central'];
   const chainNodes = [];
   chainOrder.forEach(role => {
     const found = allIds.filter(id => classified[id].chainRole === role);
@@ -279,29 +187,37 @@ function computeLayout() {
     h: CHAIN_NODE_H + ZONE_LABEL_H + 2 * ZONE_PAD,
   };
 
-  // Zone layout
+  // Zone layout — data-driven from _L.zones, with auto-layout fallback for zones missing x/y
   const zoneBounds = {};
-  ZONE_CONFIG.forEach(zc => {
+  let autoZoneIdx = 0;
+  _L.zones.filter(z => z.renderMode !== 'attackZone').forEach(zc => {
     const zoneIds = allIds.filter(id => classified[id].zoneId === zc.id && !layoutNodes[id]);
-    if (zoneIds.length === 0) return;
+    if (zoneIds.length === 0) { autoZoneIdx++; return; }
+
+    const effectiveX    = zc.x     !== undefined ? zc.x     : al.zoneStartX + (autoZoneIdx % 3) * al.colStride;
+    const effectiveY    = zc.y     !== undefined ? zc.y     : al.zoneStartY + Math.floor(autoZoneIdx / 3) * al.rowStride;
+    const effectiveCols = zc.cols  !== undefined ? zc.cols  : al.defaultCols;
+    const effectiveNW   = zc.nodeW !== undefined ? zc.nodeW : al.defaultNodeW;
+    const effectiveNH   = zc.nodeH !== undefined ? zc.nodeH : al.defaultNodeH;
+    autoZoneIdx++;
 
     zoneIds.forEach((id, i) => {
-      const col = i % zc.cols;
-      const row = Math.floor(i / zc.cols);
-      const x = zc.x + ZONE_PAD + col * (zc.nodeW + NODE_GAP);
-      const y = zc.y + ZONE_LABEL_H + ZONE_PAD + row * (zc.nodeH + NODE_GAP);
-      layoutNodes[id] = { x, y, w: zc.nodeW, h: zc.nodeH, chain: false };
+      const col = i % effectiveCols;
+      const row = Math.floor(i / effectiveCols);
+      const x = effectiveX + ZONE_PAD + col * (effectiveNW + NODE_GAP);
+      const y = effectiveY + ZONE_LABEL_H + ZONE_PAD + row * (effectiveNH + NODE_GAP);
+      layoutNodes[id] = { x, y, w: effectiveNW, h: effectiveNH, chain: false };
     });
 
-    const cols = Math.min(zoneIds.length, zc.cols);
-    const rows = Math.ceil(zoneIds.length / zc.cols);
+    const cols = Math.min(zoneIds.length, effectiveCols);
+    const rows = Math.ceil(zoneIds.length / effectiveCols);
     zoneBounds[zc.id] = {
-      x: zc.x,
-      y: zc.y,
-      w: ZONE_PAD * 2 + cols * zc.nodeW + (cols - 1) * NODE_GAP,
-      h: ZONE_PAD * 2 + rows * zc.nodeH + (rows - 1) * NODE_GAP + ZONE_LABEL_H + 4,
+      x: effectiveX,
+      y: effectiveY,
+      w: ZONE_PAD * 2 + cols * effectiveNW + (cols - 1) * NODE_GAP,
+      h: ZONE_PAD * 2 + rows * effectiveNH + (rows - 1) * NODE_GAP + ZONE_LABEL_H + 4,
       label: zc.label,
-      color: zc.color,
+      color: zc.bgColor,
     };
   });
 
@@ -311,22 +227,24 @@ function computeLayout() {
     chainEdges.push({ from: chainNodes[i], to: chainNodes[i + 1] });
   }
 
-  // Build zone edges: fw-central -> each internal zone, fw-dmz -> DMZ
+  // Build zone edges — data-driven from _L.zones (no hardcoded zone ID lists)
   const zoneEdges = [];
   const fwCentral = allIds.find(id => classified[id].chainRole === 'fw-central');
-  const fwDmz = allIds.find(id => classified[id].chainRole === 'fw-dmz');
+  const fwDmz     = allIds.find(id => classified[id].chainRole === 'fw-dmz');
 
   if (fwCentral && layoutNodes[fwCentral]) {
-    ['Server', 'SOC', 'User', 'SIEM', 'DB'].forEach(zoneId => {
-      if (zoneBounds[zoneId]) {
-        zoneEdges.push({ from: fwCentral, toZone: zoneId });
-      }
-    });
+    _L.zones
+      .filter(z => z.renderMode !== 'attackZone' && z.segment !== 'dmz')
+      .forEach(z => {
+        if (zoneBounds[z.id]) zoneEdges.push({ from: fwCentral, toZone: z.id });
+      });
   }
   if (fwDmz && layoutNodes[fwDmz]) {
-    if (zoneBounds['DMZ']) {
-      zoneEdges.push({ from: fwDmz, toZone: 'DMZ' });
-    }
+    _L.zones
+      .filter(z => z.renderMode !== 'attackZone' && z.segment === 'dmz')
+      .forEach(z => {
+        if (zoneBounds[z.id]) zoneEdges.push({ from: fwDmz, toZone: z.id });
+      });
   }
 
   // Compute viewBox
@@ -351,6 +269,26 @@ function getNodeFill(id, classified) {
   if (type === 'macos')   return COLOR_MACOS;
   if (type === 'fw')      return COLOR_FW;
   return COLOR_LINUX;
+}
+
+// ─── Legend bar — generated from zone data ────────────────────────────────────
+function buildLegend() {
+  const bar = document.getElementById('legend-bar');
+  const types = [
+    { label: 'Linux',    color: _L.colors.nodeType.linux },
+    { label: 'Windows',  color: _L.colors.nodeType.windows },
+    { label: 'Firewall', color: _L.colors.nodeType.fw },
+  ];
+  let html = types.map(t =>
+    `<div class="leg-item"><div class="leg-swatch" style="background:${t.color}"></div>${t.label}</div>`
+  ).join('') + '<div class="leg-divider"></div>';
+  html += _L.zones.map(z =>
+    `<div class="leg-item"><div class="leg-swatch" style="background:${z.bgColor}"></div>${z.label}</div>`
+  ).join('');
+  html += '<div class="leg-divider"></div>';
+  html += '<div class="leg-item"><div class="leg-line"></div>Transit path</div>';
+  html += '<div class="leg-item"><div style="width:20px;height:0;border-top:2px solid #4a5568;flex-shrink:0"></div>Segment link</div>';
+  bar.innerHTML = html;
 }
 
 // ─── Diagram rendering ────────────────────────────────────────────────────────
@@ -427,14 +365,13 @@ function renderDiagram(layout) {
     const fn = layoutNodes[from];
     const zb = zoneBounds[toZone];
     if (!fn || !zb) return;
-    const segKey = toZone === 'DMZ' ? 'DMZ_Internal' : toZone;
-    const zCfg = SEGMENT_TO_ZONE[segKey];
-    const side = zCfg ? zCfg.side : 'top';
+    const zCfgEntry = _L.zones.find(z => z.id === toZone);
+    const side = zCfgEntry ? zCfgEntry.connectorSide : 'top';
 
     const fx = fn.x + fn.w / 2;
     const fy = fn.y + fn.h / 2;
     let tx, ty;
-    if (side === 'top')    { tx = zb.x + zb.w / 2; ty = zb.y; }
+    if (side === 'top')         { tx = zb.x + zb.w / 2; ty = zb.y; }
     else if (side === 'bottom') { tx = zb.x + zb.w / 2; ty = zb.y + zb.h; }
     else if (side === 'left')   { tx = zb.x; ty = zb.y + zb.h / 2; }
     else                        { tx = zb.x + zb.w; ty = zb.y + zb.h / 2; }
@@ -543,6 +480,12 @@ function selectNode(id) {
       html += '<div class="iface-item">' + iface.network + ' \u2014 <span>' + iface.ip + '</span></div>';
     });
   }
+  if (m.nat) {
+    html += '<div style="margin-top:10px;font-size:.72rem;color:#8b949e;margin-bottom:4px">EXTERNAL NAT</div>';
+    html += '<div class="iface-item">external \u2014 <span style="color:#f0883e">' + m.nat.external_ip + '</span>'
+          + ' \u2192 ' + (m.interfaces || []).map(i => i.ip.split('/')[0]).join(', ')
+          + '<span style="color:#6e7681;font-size:.68rem;margin-left:6px">DNAT via ' + m.nat.via + '</span></div>';
+  }
   if (d.notes) {
     html += '<div class="deploy-box"><div class="dkey">Notes</div><div class="dnote">' + d.notes + '</div></div>';
   }
@@ -628,6 +571,7 @@ document.querySelectorAll('.sidebar-tabs button').forEach(btn => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 const layout = computeLayout();
+buildLegend();
 renderDiagram(layout);
 updateHeader();
 buildBars();
