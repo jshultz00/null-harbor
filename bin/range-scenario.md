@@ -28,7 +28,7 @@ Arguments:
 1. **Validate** `<scenario-dir>/manifest.yaml` exists and is parseable
 2. **Parse** manifest: extract phases list, target IPs, required env vars
 3. **Source** `<scenario-dir>/env_vars.sh` — exports all scenario-specific variables into current shell
-4. **Verify** Saffron connectivity: call `cr_listclients.bash` and check that all machines listed in `manifest.yaml` under `targets` are connected. Warn (not fail) if a target is missing.
+4. **Verify** Saffron connectivity: call `listclients.bash` and check that all machines listed in `manifest.yaml` under `targets` are connected. Warn (not fail) if a target is missing.
 5. **Execute** phases in order:
    - Print phase header: `[PHASE 1/5] 01_initial_access — Exploit Apache mod_cgi`
    - Copy phase script to scenario container: `docker cp <scenario-dir>/phases/<script> scenario:/tmp/<script>`

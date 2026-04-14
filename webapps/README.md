@@ -33,10 +33,10 @@ Scenario phases replace this content to introduce vulnerabilities:
 
 ```bash
 # Phase script replaces index.html with defacement page
-cr_copytoremote.bash web-lin ./attacker_files/defacement.html /var/www/html/index.html
+copytoremote.bash web-lin ./attacker_files/defacement.html /var/www/html/index.html
 
 # Scenario reset restores original content
-cr_copytoremote.bash web-lin ./attacker_files/original-index.html /var/www/html/index.html
+copytoremote.bash web-lin ./attacker_files/original-index.html /var/www/html/index.html
 ```
 
 Because the directory is volume-mounted (not copied into the image), changes made by Saffron survive container restarts — this is intentional, simulating a persistent compromise.

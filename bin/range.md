@@ -70,7 +70,7 @@ Prompts with a warning: "WARNING: This will wipe all data volumes. All Windows V
 
 Calls `make status` and additionally shows:
 - Windows VM boot progress (polls `dockur/windows` health endpoint if available)
-- Saffron client count: `docker exec scenario cr_listclients.bash 2>/dev/null | wc -l` enrolled agents
+- Saffron client count: `docker exec scenario listclients.bash 2>/dev/null | wc -l` enrolled agents
 
 ### [6] Show Credentials
 

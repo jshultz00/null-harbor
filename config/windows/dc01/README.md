@@ -121,7 +121,7 @@ Install-AdcsWebEnrollment -Force
 # Internal zones auto-created by AD DS promotion
 # Add fake external domain for scenario realism
 Add-DnsServerPrimaryZone -Name "contoso.com" -ZoneFile "contoso.com.dns"
-Add-DnsServerResourceRecordA -ZoneName "contoso.com" -Name "mail" -IPv4Address "9.53.99.10"
+Add-DnsServerResourceRecordA -ZoneName "contoso.com" -Name "mail" -IPv4Address "5.79.99.10"
 ```
 
 ### AD Users and Groups

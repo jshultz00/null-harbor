@@ -53,14 +53,14 @@ const NETWORK_MAP_DATA = {
       "CPUs": "4",
       "Memory (GB)": "6",
       "HDD Size (GB)": "80",
-      "description": "Scenario engine and fake internet node. Runs attack tools (Metasploit, nmap, Impacket, BloodHound, CrackMapExec, Responder, Sliver C2, Evil-WinRM) and fake internet services (Caddy HTTPS, CoreDNS). Saffron server. SSH access from host on port 2222. Scenarios mounted at /home/trainer/scenarios.",
+      "description": "Scenario engine and fake internet node. Runs attack tools (Metasploit, nmap, Impacket, BloodHound, CrackMapExec, Responder, Sliver C2, Evil-WinRM) and fake internet services (Caddy HTTPS, CoreDNS). Saffron server. SSH access from host on port 2222. Scenarios mounted at /home/attacker/scenarios.",
       "deploy": {
         "type": "linux-container",
         "image": "cyber-range/scenario:local (build: ./dockerfiles/scenario)",
         "mem_limit": "6g",
         "cap_add": ["NET_ADMIN", "NET_RAW"],
         "privileged": false,
-        "volumes": ["./scenarios:/home/trainer/scenarios", "./www:/var/www/html"]
+        "volumes": ["./scenarios:/home/attacker/scenarios", "./www:/var/www/html"]
       },
       "interfaces": [
         {"network": "external", "ip": "5.79.99.1/24"}

@@ -88,7 +88,7 @@ phases:
 export COMMANDLY_SERVER="${COMMANDLY_SERVER:-http://10.0.0.1:8080}"
 
 # Attacker source IPs (for SNAT toggling)
-export ATTACKER_IP_PHASE1="9.53.99.10"
+export ATTACKER_IP_PHASE1="5.79.99.10"
 export ATTACKER_IP_PHASE2="185.220.101.47"   # Tor exit node IP for realism
 export ATTACKER_IP_PHASE3="45.33.32.156"     # Known offensive infrastructure IP
 

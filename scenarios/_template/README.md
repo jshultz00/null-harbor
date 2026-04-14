@@ -27,7 +27,7 @@ $EDITOR manifest.yaml
 Before running a new scenario, verify:
 
 - [ ] `manifest.yaml` has a unique `slug` matching the directory name
-- [ ] All machines in `targets` are running (`cr_listclients.bash` shows them connected)
+- [ ] All machines in `targets` are running (`listclients.bash` shows them connected)
 - [ ] `env_vars.sh` exports all variables listed in `required_env`
 - [ ] Each phase script exits 0 on success
 - [ ] `bin/range-scenario --dry-run scenarios/<slug>` runs cleanly

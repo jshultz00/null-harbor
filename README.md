@@ -140,7 +140,7 @@ local_cyber_range/
 ├── www/                        # Static files served by scenario container (HTTPS)
 ├── data/                       # Docker volume mounts — gitignored
 ├── misc/
-│   ├── crs/                    # cr_* helper scripts (Saffron wrappers)
+│   ├── crs/                    # * helper scripts (Saffron wrappers)
 │   └── saffron/                # Saffron server + agent binaries and source
 ├── network_map/                # Interactive topology viewer (HTML)
 └── _specs/                     # Feature specs

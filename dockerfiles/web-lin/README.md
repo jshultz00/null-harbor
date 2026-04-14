@@ -48,8 +48,8 @@ RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add - && \
     rm -rf /var/lib/apt/lists/*
 
 # Saffron agent
-COPY --from=saffron /usr/local/bin/saffron-agent /usr/local/bin/saffron-agent
-RUN chmod +x /usr/local/bin/saffron-agent
+COPY --from=saffron /usr/bin/saffron-agent /usr/bin/saffron-agent
+RUN chmod +x /usr/bin/saffron-agent
 
 # User accounts
 RUN useradd -m -s /bin/bash www-admin && \
