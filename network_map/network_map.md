@@ -48,14 +48,14 @@ Container-based attack/defense training environment. Linux services run as Docke
 | Image     | `cyber-range/scenario:local` (build: `./dockerfiles/scenario`) |
 | mem_limit | 6g                                                             |
 | cap_add   | NET_ADMIN, NET_RAW                                             |
-| Volumes   | `./scenarios:/home/trainer/scenarios`, `./www:/var/www/html`   |
+| Volumes   | `./scenarios:/home/attacker/scenarios`, `./www:/var/www/html`   |
 
 
 **Interfaces:**
 
 - external: `5.79.99.1/24`
 
-Scenario engine and fake internet node. Runs attack tools (Metasploit, nmap, Impacket, BloodHound, CrackMapExec, Responder, Sliver C2, Evil-WinRM) and fake internet services (Caddy HTTPS, CoreDNS). Saffron server. SSH access from host on port 2222. Scenarios mounted at `/home/trainer/scenarios`.
+Scenario engine and fake internet node. Runs attack tools (Metasploit, nmap, Impacket, BloodHound, CrackMapExec, Responder, Sliver C2, Evil-WinRM) and fake internet services (Caddy HTTPS, CoreDNS). Saffron server. SSH access from host on port 2222. Scenarios mounted at `/home/attacker/scenarios`.
 
 ---
 

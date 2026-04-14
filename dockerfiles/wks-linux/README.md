@@ -48,8 +48,8 @@ RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add - && \
     rm -rf /var/lib/apt/lists/*
 
 # Saffron agent
-COPY saffron-agent-linux-amd64 /usr/local/bin/saffron-agent
-RUN chmod +x /usr/local/bin/saffron-agent
+COPY saffron-agent-linux-amd64 /usr/bin/saffron-agent
+RUN chmod +x /usr/bin/saffron-agent
 
 # User accounts
 RUN useradd -m -s /bin/bash devuser && \
@@ -121,7 +121,7 @@ exec /usr/sbin/sshd -D
 - **Credential artifacts in home directories:** `devuser/.bash_history` contains commands that reveal internal network knowledge (useful for DFIR training — analysts can trace what the machine was used for)
 - **sysadmin `.db-connection.txt`:** Plaintext credentials file — simulates a developer leaving credentials on disk. Target for credential harvesting in post-exploitation scenarios.
 - **SSH password auth enabled:** Allows brute-force scenarios (Hydra/Medusa from scenario container against `devuser`)
-- **`authorized_keys` writable by Saffron:** Scenario phases can inject a public key to simulate persistence via SSH backdoor (`cr_runcmd.bash wks-linux "echo 'ssh-rsa AAAA...' >> /home/devuser/.ssh/authorized_keys"`)
+- **`authorized_keys` writable by Saffron:** Scenario phases can inject a public key to simulate persistence via SSH backdoor (`runcmd.bash wks-linux "echo 'ssh-rsa AAAA...' >> /home/devuser/.ssh/authorized_keys"`)
 - **sudo access for sysadmin:** Allows privilege escalation from `devuser` → `sysadmin` → `root` via credential reuse
 
 ---

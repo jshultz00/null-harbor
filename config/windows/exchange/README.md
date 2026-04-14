@@ -114,11 +114,11 @@ Enable-Mailbox -Identity "cthompson@secure.net" -Database "Mailbox Database"
 ### SMTP Receive Connector (for inbound relay from scenario container)
 
 ```powershell
-# Allow anonymous SMTP relay from scenario container (9.53.99.0/24)
+# Allow anonymous SMTP relay from scenario container (5.79.99.0/24)
 # Used by phishing simulation phases to inject emails
 New-ReceiveConnector -Name "Range-Relay" `
     -TransportRole FrontendTransport `
-    -RemoteIPRanges "9.53.99.0/24" `
+    -RemoteIPRanges "5.79.99.0/24" `
     -Bindings "0.0.0.0:25" `
     -PermissionGroups AnonymousUsers
 Get-ReceiveConnector "exchange\Range-Relay" | `

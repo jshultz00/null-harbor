@@ -1,15 +1,15 @@
 # www/ — Fake Internet Static Files
 
-This directory is served by Caddy (HTTPS) on the scenario container at `https://9.53.99.1/`. It represents static content for the fake internet — pages, files, and resources that participants or victim machines might fetch from "the internet" during a scenario.
+This directory is served by Caddy (HTTPS) on the scenario container at `https://5.79.99.1/`. It represents static content for the fake internet — pages, files, and resources that participants or victim machines might fetch from "the internet" during a scenario.
 
 ---
 
 ## Purpose
 
-During scenarios, the scenario container acts as a mini-internet. DNS resolves external domains to `9.53.99.1` (CoreDNS catch-all). Caddy serves content from `www/` over HTTPS.
+During scenarios, the scenario container acts as a mini-internet. DNS resolves external domains to `5.79.99.1` (CoreDNS catch-all). Caddy serves content from `www/` over HTTPS.
 
 Use cases:
-- **Malware staging:** Payloads hosted at `https://updates.microsoft.com-cdn.net/patch.exe` (fake domain resolving to 9.53.99.1)
+- **Malware staging:** Payloads hosted at `https://updates.microsoft.com-cdn.net/patch.exe` (fake domain resolving to 5.79.99.1)
 - **Phishing pages:** `https://login.microsoftonline-auth.com/` (fake credential harvesting page)
 - **C2 callback verification:** A simple page at `https://c2.attackerco.com/beacon` that returns a 200 OK
 - **Windows setup tools:** MSI installers, ZIP files referenced by `setup.ps1` scripts
@@ -46,10 +46,10 @@ Scenario phase scripts use Saffron to write files to the scenario container's `w
 
 ```bash
 # Phase script uploads a payload to the fake internet hosting
-cr_copytoremote.bash scenario ./attacker_files/payload.py /srv/www/tools/update.py
+copytoremote.bash scenario ./attacker_files/payload.py /srv/www/tools/update.py
 ```
 
 Or directly via `docker exec`:
 ```bash
-docker exec scenario cp /home/trainer/scenarios/<slug>/attacker_files/payload.py /srv/www/tools/update.py
+docker exec scenario cp /home/attacker/scenarios/<slug>/attacker_files/payload.py /srv/www/tools/update.py
 ```

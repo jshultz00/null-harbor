@@ -25,7 +25,7 @@ All custom networks use `driver: bridge` with `com.docker.network.bridge.name` s
 |--------------------|--------|---------|-------------|
 | control | 10.0.0.0/24 | 10.0.0.254 | cr-control |
 | vpn | 10.99.0.0/24 | 10.99.0.254 | cr-vpn |
-| external | 9.53.99.0/24 | 9.53.99.254 | cr-external |
+| external | 5.79.99.0/24 | 5.79.99.254 | cr-external |
 | dmz | 10.10.10.0/24 | 10.10.10.254 | cr-dmz |
 | server | 10.20.20.0/24 | 10.20.20.254 | cr-server |
 | users | 10.30.30.0/24 | 10.30.30.254 | cr-users |
@@ -46,10 +46,10 @@ container_name: scenario
 hostname: scenario
 networks:
   control:    ipv4_address: 10.0.0.1
-  external:   ipv4_address: 9.53.99.1
+  external:   ipv4_address: 5.79.99.1
 cap_add: [NET_ADMIN, NET_RAW, SYS_PTRACE]
 volumes:
-  - ./scenarios:/home/trainer/scenarios:ro
+  - ./scenarios:/home/attacker/scenarios:ro
   - ./www:/srv/www:ro
   - ./webapps:/srv/webapps:ro
   - saffron-data:/opt/saffron/data
@@ -69,7 +69,7 @@ container_name: fw-dmz
 hostname: fw-dmz
 networks:
   control:    ipv4_address: 10.0.0.10
-  external:   ipv4_address: 9.53.99.2
+  external:   ipv4_address: 5.79.99.2
   dmz:        ipv4_address: 10.10.10.1
 cap_add: [NET_ADMIN, NET_RAW]
 sysctls:
@@ -133,7 +133,7 @@ environment:
   - PEERS=0               # Peers added dynamically via make vpn-config
   - PEERDNS=10.0.0.1      # Scenario container runs CoreDNS for range DNS
   - INTERNAL_SUBNET=10.99.0.0/24
-  - ALLOWEDIPS=10.0.0.0/24,10.10.10.0/24,10.20.20.0/24,10.30.30.0/24,10.40.40.0/24,10.50.50.0/24,9.53.99.0/24
+  - ALLOWEDIPS=10.0.0.0/24,10.10.10.0/24,10.20.20.0/24,10.30.30.0/24,10.40.40.0/24,10.50.50.0/24,5.79.99.0/24
 ```
 
 ---

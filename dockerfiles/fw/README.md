@@ -26,8 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Saffron agent (receives nft rule changes from scenario phases)
-COPY saffron-agent-linux-amd64 /usr/local/bin/saffron-agent
-RUN chmod +x /usr/local/bin/saffron-agent
+COPY saffron-agent-linux-amd64 /usr/bin/saffron-agent
+RUN chmod +x /usr/bin/saffron-agent
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -69,7 +69,7 @@ exec sleep infinity
 
 ### Why Saffron on Firewalls?
 
-Scenario phases need to dynamically modify firewall rules — specifically, the SNAT chain on fw-dmz and potentially logging rules on fw-core. Rather than exec'ing into the container directly, phases use `cr_runcmd.bash fw-dmz "nft ..."` which goes through the Saffron REST API. This keeps the scenario scripting interface consistent across all machines (Linux containers, Windows VMs, and firewalls all respond to the same `cr_runcmd.bash` interface).
+Scenario phases need to dynamically modify firewall rules — specifically, the SNAT chain on fw-dmz and potentially logging rules on fw-core. Rather than exec'ing into the container directly, phases use `runcmd.bash fw-dmz "nft ..."` which goes through the Saffron REST API. This keeps the scenario scripting interface consistent across all machines (Linux containers, Windows VMs, and firewalls all respond to the same `runcmd.bash` interface).
 
 ---
 
@@ -80,7 +80,7 @@ Scenario phases need to dynamically modify firewall rules — specifically, the 
 If a scenario phase needs to reload the full ruleset (e.g., after a `make reset`):
 
 ```bash
-cr_runcmd.bash fw-dmz "nft flush ruleset && nft -f /etc/nftables.conf"
+runcmd.bash fw-dmz "nft flush ruleset && nft -f /etc/nftables.conf"
 ```
 
 The `nftables.conf` is bind-mounted, so the container always has the latest version from the host.
@@ -88,8 +88,8 @@ The `nftables.conf` is bind-mounted, so the container always has the latest vers
 ### Verifying Rules
 
 ```bash
-cr_runcmd.bash fw-dmz "nft list ruleset"
-cr_runcmd.bash fw-dmz "nft list chain ip nat SCENARIO_SNAT"
+runcmd.bash fw-dmz "nft list ruleset"
+runcmd.bash fw-dmz "nft list chain ip nat SCENARIO_SNAT"
 ```
 
 ### Log Volume

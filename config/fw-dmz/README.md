@@ -1,6 +1,6 @@
 # config/fw-dmz/ — DMZ Perimeter Firewall
 
-This directory contains `nftables.conf` for the `fw-dmz` container. fw-dmz is the perimeter firewall bridging the `external` segment (fake internet, `9.53.99.0/24`) and the `dmz` segment (`10.10.10.0/24`). It also hosts the SNAT chain used by scenarios to present arbitrary attacker source IPs.
+This directory contains `nftables.conf` for the `fw-dmz` container. fw-dmz is the perimeter firewall bridging the `external` segment (fake internet, `5.79.99.0/24`) and the `dmz` segment (`10.10.10.0/24`). It also hosts the SNAT chain used by scenarios to present arbitrary attacker source IPs.
 
 ---
 
@@ -9,7 +9,7 @@ This directory contains `nftables.conf` for the `fw-dmz` container. fw-dmz is th
 | Interface | Segment | Subnet | IP |
 |-----------|---------|--------|-----|
 | `eth0` | management (OOB — not visible to participants) | 10.0.0.0/24 | 10.0.0.10 |
-| `eth1` | external | 9.53.99.0/24 | 9.53.99.2 |
+| `eth1` | external | 5.79.99.0/24 | 5.79.99.2 |
 | `eth2` | dmz | 10.10.10.0/24 | 10.10.10.1 |
 
 IPv4 forwarding is enabled via `net.ipv4.ip_forward=1` (set in `docker-compose.yml` sysctl).
@@ -72,7 +72,7 @@ table ip nat {
     # SNAT chain — empty by default; rules added/removed by scenario phases
     chain SCENARIO_SNAT {
         # Rules injected by scenario phases, e.g.:
-        # ip saddr 9.53.99.1 oifname "eth2" snat to 3.3.3.3
+        # ip saddr 5.79.99.1 oifname "eth2" snat to 3.3.3.3
     }
 
     chain postrouting {
@@ -94,8 +94,8 @@ Phase scripts use Saffron to run `nft` commands on fw-dmz:
 
 ```bash
 # Activate a new attacker IP persona (e.g., phase 3 presents as 185.220.101.47)
-cr_runcmd.bash fw-dmz "nft flush chain ip nat SCENARIO_SNAT"
-cr_runcmd.bash fw-dmz "nft add rule ip nat SCENARIO_SNAT ip saddr 9.53.99.1 oifname eth2 snat to 185.220.101.47"
+runcmd.bash fw-dmz "nft flush chain ip nat SCENARIO_SNAT"
+runcmd.bash fw-dmz "nft add rule ip nat SCENARIO_SNAT ip saddr 5.79.99.1 oifname eth2 snat to 185.220.101.47"
 ```
 
 Because nftables is stateful, existing TCP connections from the previous phase's source IP continue to use that IP (tracked by conntrack) until the session closes. New connections from the next phase will use the new SNAT IP.
@@ -104,7 +104,7 @@ Because nftables is stateful, existing TCP connections from the previous phase's
 
 At scenario reset, the SNAT chain is flushed:
 ```bash
-cr_runcmd.bash fw-dmz "nft flush chain ip nat SCENARIO_SNAT"
+runcmd.bash fw-dmz "nft flush chain ip nat SCENARIO_SNAT"
 ```
 
 ---

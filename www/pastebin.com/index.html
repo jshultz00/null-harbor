@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pastebin.com - #1 paste tool since 2002!</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f8f8f8; color: #333; }
+  header { background: #02a8f3; color: #fff; padding: 10px 20px; display: flex; align-items: center; }
+  .logo { font-size: 24px; font-weight: bold; margin-right: auto; }
+  header nav a { color: #fff; text-decoration: none; margin-left: 20px; font-size: 14px; }
+  .container { max-width: 960px; margin: 30px auto; padding: 0 20px; display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+  .new-paste h2 { font-size: 18px; margin-bottom: 12px; }
+  .new-paste textarea { width: 100%; height: 300px; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px; resize: vertical; outline: none; }
+  .paste-options { margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .paste-options input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  .paste-options button { background: #02a8f3; color: #fff; border: none; padding: 10px 24px; border-radius: 4px; font-size: 14px; cursor: pointer; }
+  .sidebar h3 { font-size: 16px; margin-bottom: 12px; border-bottom: 2px solid #02a8f3; padding-bottom: 6px; }
+  .paste-list { list-style: none; }
+  .paste-list li { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+  .paste-list li a { color: #02a8f3; text-decoration: none; }
+  .paste-list li span { color: #999; font-size: 12px; display: block; }
+  footer { text-align: center; padding: 20px; font-size: 12px; color: #999; margin-top: 40px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">Pastebin</span>
+  <nav>
+    <a href="#">Create</a>
+    <a href="#">Archive</a>
+    <a href="#">FAQ</a>
+    <a href="#">Sign In</a>
+    <a href="#">Sign Up</a>
+  </nav>
+</header>
+<div class="container">
+  <div class="new-paste">
+    <h2>New Paste</h2>
+    <textarea placeholder="Paste your code or text here..."></textarea>
+    <div class="paste-options">
+      <input type="text" placeholder="Paste Title (optional)">
+      <button type="button">Create New Paste</button>
+    </div>
+  </div>
+  <div class="sidebar">
+    <h3>Recent Pastes</h3>
+    <ul class="paste-list">
+      <li><a href="#">Untitled</a><span>2 minutes ago</span></li>
+      <li><a href="#">config.yml</a><span>11 minutes ago</span></li>
+      <li><a href="#">notes.txt</a><span>23 minutes ago</span></li>
+      <li><a href="#">Untitled</a><span>1 hour ago</span></li>
+      <li><a href="#">script.py</a><span>2 hours ago</span></li>
+      <li><a href="#">log_output</a><span>3 hours ago</span></li>
+    </ul>
+  </div>
+</div>
+<footer>&copy; 2024 Pastebin.com — All rights reserved.</footer>
+</body>
+</html>

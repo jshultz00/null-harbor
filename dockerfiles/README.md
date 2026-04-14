@@ -23,8 +23,8 @@ This directory contains Dockerfiles for all custom-built container images. Each 
 Every Linux image installs the Saffron agent binary and starts it as a background process in the container entrypoint. The binary is copied from `misc/saffron/bin/saffron-agent-linux-amd64` during the build:
 
 ```dockerfile
-COPY --from=build /opt/saffron/saffron-agent /usr/local/bin/saffron-agent
-RUN chmod +x /usr/local/bin/saffron-agent
+COPY --from=build /opt/saffron/saffron-agent /usr/bin/saffron-agent
+RUN chmod +x /usr/bin/saffron-agent
 ```
 
 The entrypoint starts Saffron before the primary service:

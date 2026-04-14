@@ -30,8 +30,8 @@ mitre:
     name: "Replace with MITRE technique name"
 
 # REQUIRED: Target machine name → IP mapping
-# Must include all machines that phase scripts interact with via cr_* commands
-# Names must match Saffron client hostnames (cr_listclients.bash output)
+# Must include all machines that phase scripts interact with via * commands
+# Names must match Saffron client hostnames (listclients.bash output)
 targets:
   scenario: "10.0.0.1"
   # Add target machines here, e.g.:

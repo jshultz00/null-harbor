@@ -1,0 +1,21 @@
+# myhostname and mydomain set at container start via postconf -e
+# using $SMTP_HOSTNAME and $SMTP_DOMAIN environment variables.
+# Defaults (applied by entrypoint.sh if env vars absent):
+#   SMTP_HOSTNAME=mail.attacker.com
+#   SMTP_DOMAIN=attacker.com
+# Phase scripts override mid-scenario: postconf -e "myhostname=..." && postfix reload
+
+myorigin         = $mydomain
+inet_interfaces  = all
+inet_protocols   = ipv4
+relayhost        =
+mynetworks       = 127.0.0.0/8
+
+# Queue and retry — mail-relay container may not be up during initial testing
+maximal_queue_lifetime = 5d
+bounce_queue_lifetime  = 1d
+
+# Route secure.net mail via DMZ mail-relay
+# Flow: scenario → 5.79.99.25:25 → fw-dmz DNAT → mail-relay:25 → Exchange
+# Generates realistic SMTP artifacts at each hop for defender training
+transport_maps = hash:/etc/postfix/transport
