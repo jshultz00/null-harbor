@@ -1,0 +1,7 @@
+<!-- range-net.xml -->
+<network>
+  <name>c2</name>
+  <bridge name='c2' stp='on' delay='0'/>
+  <ip address='172.16.0.254' netmask='255.255.255.0'>
+  </ip>
+</network>
