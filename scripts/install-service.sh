@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs null-harbor-gui as a systemd service that starts at boot.
-# Run once as a user with sudo access.
+# Idempotent: will kill and reinstall if already running.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,22 @@ CURRENT_USER="$(whoami)"
 
 export LIBVIRT_DEFAULT_URI="qemu:///system"
 
-# Build binary first
+# Stop service if running
+if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    echo "[*] Service is running. Stopping..."
+    sudo systemctl stop "$SERVICE_NAME"
+    sleep 1
+fi
+
+# Kill any processes still listening on port 8082
+if sudo lsof -i :8082 &>/dev/null; then
+    echo "[*] Killing process on port 8082..."
+    PID=$(sudo lsof -ti :8082)
+    sudo kill -9 "$PID" 2>/dev/null || true
+    sleep 1
+fi
+
+# Build binary
 echo "[*] Building null-harbor-gui..."
 cd "$GUI_DIR"
 go build -o "$BINARY" .
@@ -42,7 +57,9 @@ EOF
 
 echo "[*] Reloading systemd and enabling service..."
 sudo systemctl daemon-reload
-sudo systemctl enable --now "$SERVICE_NAME"
+sudo systemctl enable "$SERVICE_NAME"
+sudo systemctl start "$SERVICE_NAME"
+sleep 2
 
 echo ""
 echo "[+] Done. Service status:"
