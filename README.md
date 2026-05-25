@@ -29,14 +29,14 @@ sudo systemctl {start,stop,restart,status} null-harbor-gui
 ### 2. Start VMs
 ```bash
 virsh net-start c2
-virsh start kali-attacker
-virsh start ubuntu24
-virsh start windows10
+virsh start attacker
+virsh start user-ubuntu24
+virsh start user-windows10
 ```
 
 ### 3. Access VM Consoles
 ```bash
-virt-viewer kali-attacker &
+virt-viewer attacker &
 ```
 
 ---
@@ -45,9 +45,9 @@ virt-viewer kali-attacker &
 
 | Name | OS | IP | Role |
 |------|----|----|------|
-| `kali-attacker` | Kali Linux 2026.1 | 10.0.0.1 | Attacker |
-| `ubuntu24` | Ubuntu 24.04 Server | 10.0.0.100 | Linux target |
-| `windows10` | Windows 10 Enterprise | 10.0.0.101 | Windows target |
+| `attacker` | Kali Linux 2026.1 | 10.0.0.1 | Attacker |
+| `user-ubuntu24` | Ubuntu 24.04 Server | 10.0.0.100 | Linux target |
+| `user-windows10` | Windows 10 Enterprise | 10.0.0.101 | Windows target |
 
 **Network:** `10.0.0.0/24` (c2 network, air-gapped)
 
