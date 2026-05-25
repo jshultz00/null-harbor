@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NULL HARBOR // CONTROL PANEL</title>
+<link rel="stylesheet" href="network_map.css">
 <style>
   :root {
     --bg:       #050808;
@@ -97,6 +98,38 @@
     text-align: right;
   }
 
+  /* ---- NAV TABS ---- */
+  .nav-tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: 0 24px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .nav-tab {
+    padding: 12px 0;
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: var(--font);
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .nav-tab:hover {
+    color: var(--text);
+  }
+
+  .nav-tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
   /* ---- BULK ACTIONS ---- */
   .bulk-bar {
     background: var(--surface);
@@ -118,6 +151,16 @@
   /* ---- MAIN CONTENT ---- */
   main {
     padding: 24px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .content-section {
+    display: none;
+  }
+
+  .content-section.active {
+    display: block;
   }
 
   .section-header {
@@ -398,106 +441,60 @@
     padding: 6px 16px;
     min-height: 24px;
     letter-spacing: 1px;
-    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-status:not(.visible) {
     display: none;
   }
 
-  .card-status.visible { display: block; }
-
-  /* ---- SPINNER ---- */
-  .spinner {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border: 1px solid var(--dim);
-    border-top-color: var(--green);
+  .card-status .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--yellow);
+    border-right-color: transparent;
     border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    vertical-align: middle;
-    margin-right: 4px;
+    animation: spin 0.8s linear infinite;
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ---- TOAST ---- */
-  #toast-container {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 1000;
-    pointer-events: none;
-  }
-
-  .toast {
-    font-family: var(--font);
-    font-size: 11px;
-    padding: 10px 16px;
-    border-radius: var(--radius);
-    border: 1px solid;
-    max-width: 340px;
-    animation: toast-in 0.2s ease-out;
-    pointer-events: auto;
-    letter-spacing: 0.5px;
-  }
-
-  .toast-ok {
-    background: #041a08;
-    border-color: var(--green2);
-    color: var(--green);
-  }
-
-  .toast-err {
-    background: #1a0404;
-    border-color: var(--red2);
-    color: var(--red);
-  }
-
-  .toast-info {
-    background: #041520;
-    border-color: var(--cyan2);
-    color: var(--cyan);
-  }
-
-  @keyframes toast-in {
-    from { opacity: 0; transform: translateX(20px); }
-    to   { opacity: 1; transform: translateX(0); }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   /* ---- DIALOG ---- */
   dialog {
     background: var(--surface);
     border: 1px solid var(--border2);
-    border-radius: var(--radius);
+    border-radius: 4px;
     color: var(--text);
     font-family: var(--font);
-    padding: 24px;
-    max-width: 420px;
-    width: 90%;
-    box-shadow: 0 0 40px rgba(0,255,65,0.1);
+    max-width: 500px;
   }
 
   dialog::backdrop {
-    background: rgba(0,0,0,0.8);
+    background: rgba(0, 0, 0, 0.8);
   }
 
   .dialog-title {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--green);
     letter-spacing: 2px;
-    margin-bottom: 12px;
+    font-weight: bold;
+    padding: 16px;
+    border-bottom: 1px solid var(--border2);
   }
 
   .dialog-warn {
-    font-size: 11px;
+    background: rgba(255, 200, 0, 0.08);
     color: var(--yellow);
-    background: rgba(255,204,0,0.05);
-    border: 1px solid #553300;
-    padding: 8px 12px;
-    margin-bottom: 16px;
-    border-radius: var(--radius);
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 12px 16px;
+    margin: 16px;
+    border: 1px solid var(--border2);
+    border-radius: 2px;
     line-height: 1.6;
   }
 
@@ -526,33 +523,243 @@
     font-size: 11px;
     letter-spacing: 2px;
   }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--text2);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+  }
+
+  /* ---- TOAST ---- */
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+  }
+
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: var(--radius);
+    font-size: 11px;
+    letter-spacing: 1px;
+    animation: slideIn 0.2s;
+  }
+
+  .toast.toast-ok { border-color: var(--green2); color: var(--green); }
+  .toast.toast-err { border-color: var(--red2); color: var(--red); }
+  .toast.toast-info { border-color: var(--cyan2); color: var(--cyan); }
+
+  @keyframes slideIn {
+    from { transform: translateX(400px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* ---- WRAPPER ---- */
+  .wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  /* Network map integration */
+  .network-map-content {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  .canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 4px;
+  }
+
+  .network-sidebar {
+    width: 320px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid #30363d;
+    background: #0d1117;
+  }
+
+  .sidebar-tabs button {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    font-family: 'Courier New', monospace;
+  }
+
+  .sidebar-tabs button.active {
+    color: #f0f6fc;
+    border-bottom-color: #388bfd;
+    background: #0d1117;
+  }
+
+  .sidebar-tabs button:hover:not(.active) {
+    color: #c9d1d9;
+  }
+
+  .tab-panel {
+    display: none;
+    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    color: #c9d1d9;
+  }
+
+  .tab-panel.active {
+    display: block;
+  }
+
+  #detail-placeholder {
+    color: #8b949e;
+    font-size: 0.75rem;
+    padding: 20px 12px;
+    text-align: center;
+  }
+
+  #detail {
+    display: none;
+  }
+
+  #detail h2 {
+    font-size: 0.9rem;
+    color: #f0f6fc;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+
+  #detail .os {
+    font-size: 0.7rem;
+    color: #8b949e;
+    margin-bottom: 12px;
+  }
+
+  .detail-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.73rem;
+  }
+
+  .detail-label {
+    color: #8b949e;
+    min-width: 70px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .detail-val {
+    color: #79c0ff;
+    flex: 1;
+  }
+
+  .iface-item {
+    background: #0d1117;
+    border-radius: 3px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    font-size: 0.7rem;
+    color: #8b949e;
+    border-left: 2px solid #30363d;
+  }
+
+  .iface-item span {
+    color: #58a6ff;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-title">
-    <h1>// NULL HARBOR CONTROL PANEL //</h1>
-    <div class="sub">KVM/LIBVIRT &bull; 10.0.0.0/24 &bull; NETWORK: c2</div>
-  </div>
-  <div class="header-right">
-    <div class="clock" id="clock"></div>
-  </div>
-</header>
+<div class="wrapper">
+  <header>
+    <div class="header-title">
+      <h1>// NULL HARBOR CONTROL PANEL //</h1>
+      <div class="sub">KVM/LIBVIRT &bull; 10.0.0.0/24 &bull; NETWORK: c2</div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock"></div>
+    </div>
+  </header>
 
-<div class="bulk-bar">
-  <span class="label">ALL VMS:</span>
-  <button class="btn btn-green" id="btn-start-all" onclick="startAll()">&#9654; START ALL</button>
-  <button class="btn btn-yellow" id="btn-stop-all" onclick="stopAll()">&#9646;&#9646; SHUTDOWN ALL</button>
-  <button class="btn btn-cyan" id="btn-revert-all" onclick="openRevertAllDialog()">&#8635; REVERT ALL</button>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-section="vm-control" onclick="switchSection('vm-control', event)">VM CONTROL</button>
+    <button class="nav-tab" data-section="network-map" onclick="switchSection('network-map', event)">NETWORK MAP</button>
+  </nav>
+
+  <!-- VM Control Section -->
+  <div id="vm-control" class="content-section active">
+    <div class="bulk-bar">
+      <span class="label">ALL VMS:</span>
+      <button class="btn btn-green" id="btn-start-all" onclick="startAll()">&#9654; START ALL</button>
+      <button class="btn btn-yellow" id="btn-stop-all" onclick="stopAll()">&#9646;&#9646; SHUTDOWN ALL</button>
+      <button class="btn btn-cyan" id="btn-revert-all" onclick="openRevertAllDialog()">&#8635; REVERT ALL</button>
+    </div>
+
+    <main>
+      <div class="section-header">// VM STATUS &amp; CONTROL</div>
+      <div class="vm-grid" id="vm-grid">
+        <div class="loading-card"><span class="spinner"></span>&nbsp;CONNECTING TO HYPERVISOR...</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Network Map Section -->
+  <div id="network-map" class="content-section">
+    <main>
+      <div class="section-header">// NETWORK TOPOLOGY &amp; INFRASTRUCTURE</div>
+      <div class="network-map-content">
+        <div class="canvas-wrap" id="canvasWrap">
+          <svg id="diagram"></svg>
+        </div>
+        <div class="network-sidebar">
+          <div class="sidebar-tabs">
+            <button data-tab="resources" class="active">DETAILS</button>
+          </div>
+          <div class="tab-panel active" id="tab-resources">
+            <div id="detail-placeholder" style="color:#8b949e;font-size:.8rem;padding:20px 14px">Click any node on the diagram to see details here.</div>
+            <div id="detail" style="display:none;padding:14px"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 </div>
-
-<main>
-  <div class="section-header">// VM STATUS &amp; CONTROL</div>
-  <div class="vm-grid" id="vm-grid">
-    <div class="loading-card"><span class="spinner"></span>&nbsp;CONNECTING TO HYPERVISOR...</div>
-  </div>
-</main>
 
 <!-- Revert confirm dialog -->
 <dialog id="revert-dialog">
@@ -607,7 +814,30 @@
 
 <div id="toast-container"></div>
 
+<script src="network_map.js"></script>
 <script>
+// ---------------------------------------------------------------------------
+// Section Navigation
+// ---------------------------------------------------------------------------
+function switchSection(sectionId, event) {
+  event.preventDefault();
+  
+  // Update nav tabs
+  document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  // Show/hide sections
+  document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+  document.getElementById(sectionId).classList.add('active');
+  
+  // Initialize network map if switching to it
+  if (sectionId === 'network-map') {
+    setTimeout(() => {
+      initNetworkMap();
+    }, 100);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------

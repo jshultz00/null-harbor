@@ -560,6 +560,14 @@ func main() {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Static files (CSS, JS) — serve from web/ directory
+	mux.HandleFunc("/network_map.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(webRoot, "network_map.css"))
+	})
+	mux.HandleFunc("/network_map.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(webRoot, "network_map.js"))
+	})
+
 	// Frontend — serve index.html for all other paths
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(webRoot, "index.html"))
