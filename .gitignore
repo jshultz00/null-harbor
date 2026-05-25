@@ -15,7 +15,7 @@ isos/*
 !isos/README.md
 
 # GUI compiled binary
-cyberrange-gui
+null-harbor-gui
 
 # Docker
 docker/

@@ -566,7 +566,7 @@ func main() {
 	})
 
 	addr := fmt.Sprintf(":%d", *port)
-	log.Printf("Cyber Range GUI listening on http://localhost%s", addr)
+	log.Printf("Null Harbor GUI listening on http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

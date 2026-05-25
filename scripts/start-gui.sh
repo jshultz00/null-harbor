@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 GUI_DIR="$PROJECT_ROOT/gui"
-BINARY="$GUI_DIR/cyberrange-gui"
+BINARY="$GUI_DIR/null-harbor-gui"
 PORT=8082
 
 export LIBVIRT_DEFAULT_URI="qemu:///system"
@@ -28,11 +28,11 @@ fi
 
 # Build if binary is missing or source is newer
 if [ ! -f "$BINARY" ] || [ "$GUI_DIR/main.go" -nt "$BINARY" ]; then
-    echo "[*] Building cyberrange-gui..."
+    echo "[*] Building null-harbor-gui..."
     cd "$GUI_DIR"
     go build -o "$BINARY" .
     echo "[*] Build complete."
 fi
 
-echo "[*] Starting Cyber Range GUI at http://localhost:${PORT}"
+echo "[*] Starting Null Harbor GUI at http://localhost:${PORT}"
 exec "$BINARY" --port "$PORT" --web "$GUI_DIR/web"
