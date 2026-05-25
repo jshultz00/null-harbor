@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYBER RANGE // CONTROL PANEL</title>
+<style>
+  :root {
+    --bg:       #050808;
+    --surface:  #0b0f0f;
+    --surface2: #0f1a1a;
+    --border:   #0d2a1a;
+    --border2:  #143d25;
+    --green:    #00ff41;
+    --green2:   #00cc33;
+    --cyan:     #00d4ff;
+    --cyan2:    #00a8cc;
+    --red:      #ff3333;
+    --red2:     #cc1a1a;
+    --yellow:   #ffcc00;
+    --orange:   #ff8800;
+    --text:     #b8f0b8;
+    --text2:    #6aaa6a;
+    --dim:      #2d5a2d;
+    --font:     'Courier New', Courier, monospace;
+    --radius:   2px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ---- HEADER ---- */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .header-title h1 {
+    font-size: 18px;
+    font-weight: normal;
+    color: var(--green);
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px rgba(0,255,65,0.5);
+  }
+
+  .header-title .sub {
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .clock {
+    font-size: 11px;
+    color: var(--cyan);
+    letter-spacing: 1px;
+    text-align: right;
+  }
+
+  /* ---- BULK ACTIONS ---- */
+  .bulk-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .bulk-bar .label {
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 2px;
+    margin-right: 4px;
+  }
+
+  /* ---- MAIN CONTENT ---- */
+  main {
+    padding: 24px;
+  }
+
+  .section-header {
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  /* ---- VM GRID ---- */
+  .vm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+  }
+
+  /* ---- VM CARD ---- */
+  .vm-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+  }
+
+  .vm-card:hover {
+    border-color: var(--border2);
+    box-shadow: 0 0 16px rgba(0,255,65,0.08);
+  }
+
+  .vm-card.running {
+    border-color: #0d3d1a;
+    box-shadow: 0 0 12px rgba(0,255,65,0.06);
+  }
+
+  .card-header {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .card-name {
+    font-size: 14px;
+    color: var(--green);
+    letter-spacing: 1px;
+    font-weight: bold;
+  }
+
+  .card-badges {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: var(--radius);
+    border: 1px solid;
+  }
+
+  .badge-role {
+    color: var(--cyan);
+    border-color: var(--cyan2);
+    background: rgba(0,212,255,0.06);
+  }
+
+  .badge-attacker { color: var(--red); border-color: var(--red2); background: rgba(255,51,51,0.06); }
+
+  /* ---- STATE DOT ---- */
+  .state-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+
+  .state-dot.running {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .state-dot.off { background: #333; }
+  .state-dot.paused { background: var(--yellow); }
+  .state-dot.unknown { background: var(--orange); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+    50% { opacity: 0.5; box-shadow: 0 0 2px var(--green); }
+  }
+
+  /* ---- CARD BODY ---- */
+  .card-body {
+    padding: 14px 16px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    margin-bottom: 14px;
+  }
+
+  .info-item { display: flex; flex-direction: column; gap: 2px; }
+  .info-label { font-size: 9px; color: var(--text2); letter-spacing: 1.5px; }
+  .info-value { font-size: 12px; color: var(--text); }
+  .info-value.highlight { color: var(--green); }
+  .info-value.state { display: flex; align-items: center; }
+
+  /* ---- CARD CONTROLS ---- */
+  .card-controls {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  /* ---- BUTTONS ---- */
+  .btn {
+    font-family: var(--font);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-green {
+    color: var(--green);
+    border-color: var(--green2);
+  }
+  .btn-green:not(:disabled):hover {
+    background: rgba(0,255,65,0.1);
+    box-shadow: 0 0 8px rgba(0,255,65,0.2);
+  }
+
+  .btn-cyan {
+    color: var(--cyan);
+    border-color: var(--cyan2);
+  }
+  .btn-cyan:not(:disabled):hover {
+    background: rgba(0,212,255,0.1);
+    box-shadow: 0 0 8px rgba(0,212,255,0.2);
+  }
+
+  .btn-red {
+    color: var(--red);
+    border-color: var(--red2);
+  }
+  .btn-red:not(:disabled):hover {
+    background: rgba(255,51,51,0.1);
+    box-shadow: 0 0 8px rgba(255,51,51,0.2);
+  }
+
+  .btn-yellow {
+    color: var(--yellow);
+    border-color: #aa8800;
+  }
+  .btn-yellow:not(:disabled):hover {
+    background: rgba(255,204,0,0.1);
+    box-shadow: 0 0 8px rgba(255,204,0,0.2);
+  }
+
+  .btn-sm { font-size: 9px; padding: 4px 8px; }
+
+  /* ---- SNAPSHOT PANEL ---- */
+  .snapshot-section {
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  .snapshot-toggle {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+  }
+
+  .snapshot-toggle:hover { color: var(--cyan); }
+
+  .snapshot-toggle .arrow { transition: transform 0.2s; }
+  .snapshot-toggle.open .arrow { transform: rotate(90deg); }
+
+  .snapshot-panel {
+    display: none;
+    padding: 0 16px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .snapshot-panel.open { display: block; }
+
+  .snap-subsection { margin-top: 12px; }
+  .snap-subsection-title {
+    font-size: 9px;
+    color: var(--text2);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .snap-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .snap-select {
+    font-family: var(--font);
+    font-size: 11px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 4px 8px;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .snap-select:focus {
+    outline: none;
+    border-color: var(--cyan2);
+    box-shadow: 0 0 6px rgba(0,212,255,0.15);
+  }
+
+  .snap-input {
+    font-family: var(--font);
+    font-size: 11px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 4px 8px;
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .snap-input:focus {
+    outline: none;
+    border-color: var(--green2);
+    box-shadow: 0 0 6px rgba(0,255,65,0.15);
+  }
+
+  .snap-input::placeholder { color: var(--dim); }
+
+  /* ---- STATUS LINE ---- */
+  .card-status {
+    font-size: 10px;
+    color: var(--yellow);
+    padding: 6px 16px;
+    min-height: 24px;
+    letter-spacing: 1px;
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+
+  .card-status.visible { display: block; }
+
+  /* ---- SPINNER ---- */
+  .spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dim);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- TOAST ---- */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .toast {
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    border: 1px solid;
+    max-width: 340px;
+    animation: toast-in 0.2s ease-out;
+    pointer-events: auto;
+    letter-spacing: 0.5px;
+  }
+
+  .toast-ok {
+    background: #041a08;
+    border-color: var(--green2);
+    color: var(--green);
+  }
+
+  .toast-err {
+    background: #1a0404;
+    border-color: var(--red2);
+    color: var(--red);
+  }
+
+  .toast-info {
+    background: #041520;
+    border-color: var(--cyan2);
+    color: var(--cyan);
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ---- DIALOG ---- */
+  dialog {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 0 40px rgba(0,255,65,0.1);
+  }
+
+  dialog::backdrop {
+    background: rgba(0,0,0,0.8);
+  }
+
+  .dialog-title {
+    font-size: 13px;
+    color: var(--green);
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+
+  .dialog-warn {
+    font-size: 11px;
+    color: var(--yellow);
+    background: rgba(255,204,0,0.05);
+    border: 1px solid #553300;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    border-radius: var(--radius);
+    line-height: 1.6;
+  }
+
+  .dialog-body { margin-bottom: 20px; }
+  .dialog-label {
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  /* ---- LOADING STATE ---- */
+  .loading-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text2);
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>// CYBER RANGE CONTROL PANEL //</h1>
+    <div class="sub">KVM/LIBVIRT &bull; 172.16.0.0/24 &bull; NETWORK: c2</div>
+  </div>
+  <div class="header-right">
+    <div class="clock" id="clock"></div>
+  </div>
+</header>
+
+<div class="bulk-bar">
+  <span class="label">ALL VMS:</span>
+  <button class="btn btn-green" id="btn-start-all" onclick="startAll()">&#9654; START ALL</button>
+  <button class="btn btn-yellow" id="btn-stop-all" onclick="stopAll()">&#9646;&#9646; SHUTDOWN ALL</button>
+  <button class="btn btn-cyan" id="btn-revert-all" onclick="openRevertAllDialog()">&#8635; REVERT ALL</button>
+</div>
+
+<main>
+  <div class="section-header">// VM STATUS &amp; CONTROL</div>
+  <div class="vm-grid" id="vm-grid">
+    <div class="loading-card"><span class="spinner"></span>&nbsp;CONNECTING TO HYPERVISOR...</div>
+  </div>
+</main>
+
+<!-- Revert confirm dialog -->
+<dialog id="revert-dialog">
+  <div class="dialog-title">// SNAPSHOT REVERT</div>
+  <div class="dialog-warn">
+    &#9888; WARNING: If the VM is running it will be shut down automatically. The current VM state will be destroyed and replaced with the snapshot. This cannot be undone.
+  </div>
+  <div class="dialog-body">
+    <span class="dialog-label">SNAPSHOT</span>
+    <div style="color: var(--cyan); font-size:13px; letter-spacing:1px;" id="revert-snap-name">&mdash;</div>
+    <div style="margin-top:8px; font-size:11px; color: var(--text2);">VM: <span id="revert-vm-name" style="color:var(--green)"></span></div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-cyan" onclick="document.getElementById('revert-dialog').close()">CANCEL</button>
+    <button class="btn btn-red" id="revert-confirm-btn" onclick="confirmRevert()">REVERT</button>
+  </div>
+</dialog>
+
+<!-- Delete confirm dialog -->
+<dialog id="delete-dialog">
+  <div class="dialog-title">// DELETE SNAPSHOT</div>
+  <div class="dialog-warn">
+    &#9888; WARNING: This will permanently delete the snapshot. This cannot be undone.
+  </div>
+  <div class="dialog-body">
+    <span class="dialog-label">SNAPSHOT</span>
+    <div style="color: var(--red); font-size:13px; letter-spacing:1px;" id="delete-snap-name">&mdash;</div>
+    <div style="margin-top:8px; font-size:11px; color: var(--text2);">VM: <span id="delete-vm-name" style="color:var(--green)"></span></div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-cyan" onclick="document.getElementById('delete-dialog').close()">CANCEL</button>
+    <button class="btn btn-red" id="delete-confirm-btn" onclick="confirmDelete()">DELETE</button>
+  </div>
+</dialog>
+
+<!-- Revert All dialog -->
+<dialog id="revert-all-dialog">
+  <div class="dialog-title">// REVERT ALL VMs</div>
+  <div class="dialog-warn">
+    &#9888; WARNING: All running VMs will be shut down automatically, then every VM will be reverted to the specified snapshot. All current VM state will be lost. This cannot be undone.
+  </div>
+  <div class="dialog-body">
+    <span class="dialog-label">SNAPSHOT NAME</span>
+    <input class="snap-input" id="revert-all-snap-input" value="initialsnap" placeholder="SNAPSHOT NAME" maxlength="64">
+    <div style="margin-top:8px; font-size:10px; color:var(--text2);">Applies to: <span style="color:var(--green)">kali-attacker &bull; ubuntu24 &bull; windows10</span></div>
+  </div>
+  <div class="dialog-actions">
+    <button class="btn btn-cyan" onclick="document.getElementById('revert-all-dialog').close()">CANCEL</button>
+    <button class="btn btn-red" id="revert-all-confirm-btn" onclick="confirmRevertAll()">REVERT ALL</button>
+  </div>
+</dialog>
+
+<div id="toast-container"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let vmData = [];
+let snapshots = {}; // { vmName: [snapName, ...] }
+let pendingRevert = null;  // { vmName, snapshot }
+let pendingDelete = null;  // { vmName, snapshot }
+
+// ---------------------------------------------------------------------------
+// Clock
+// ---------------------------------------------------------------------------
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ---------------------------------------------------------------------------
+// API helpers
+// ---------------------------------------------------------------------------
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
+}
+
+async function fetchSnapshots(vmName) {
+  const { ok, data } = await api('GET', `/api/vm/${vmName}/snapshots`);
+  if (ok) {
+    snapshots[vmName] = data.snapshots || [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ---------------------------------------------------------------------------
+// Card status line
+// ---------------------------------------------------------------------------
+function setCardStatus(vmName, msg) {
+  const el = document.getElementById(`status-${vmName}`);
+  if (!el) return;
+  if (msg) {
+    el.innerHTML = `<span class="spinner"></span>${msg}`;
+    el.classList.add('visible');
+  } else {
+    el.innerHTML = '';
+    el.classList.remove('visible');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function stateClass(state) {
+  if (state === 'running') return 'running';
+  if (state === 'paused') return 'paused';
+  if (state === 'shut off') return 'off';
+  return 'unknown';
+}
+
+function stateDotClass(state) {
+  if (state === 'running') return 'running';
+  if (state === 'paused') return 'paused';
+  if (state === 'shut off') return 'off';
+  return 'unknown';
+}
+
+function fmtMem(mb) {
+  if (!mb) return '—';
+  if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+  return mb + ' MB';
+}
+
+function fmtDisk(gb) {
+  if (!gb) return '—';
+  return gb.toFixed(1) + ' GB';
+}
+
+function renderVM(vm) {
+  const isRunning = vm.state === 'running';
+  const isOff = vm.state === 'shut off';
+  const cardClass = isRunning ? 'vm-card running' : 'vm-card';
+  const dot = `<span class="state-dot ${stateDotClass(vm.state)}"></span>`;
+  const roleClass = vm.role === 'Attacker' ? 'badge badge-attacker' : 'badge badge-role';
+  const snaps = snapshots[vm.name] || [];
+  const snapOptions = snaps.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+
+  return `
+<div class="${cardClass}" id="card-${vm.name}">
+  <div class="card-header">
+    <span class="card-name">${escHtml(vm.name)}</span>
+    <div class="card-badges">
+      <span class="${roleClass}">${escHtml(vm.role.toUpperCase())}</span>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">STATE</span>
+        <span class="info-value state">${dot}${escHtml(vm.state)}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">IP ADDRESS</span>
+        <span class="info-value highlight">${escHtml(vm.ip)}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">OPERATING SYSTEM</span>
+        <span class="info-value">${escHtml(vm.os)}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">MAX MEMORY</span>
+        <span class="info-value">${fmtMem(vm.maxMemoryMB)}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">VCPUS</span>
+        <span class="info-value">${vm.cpus || '—'}</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">DISK SIZE</span>
+        <span class="info-value">${fmtDisk(vm.diskSizeGB)}</span>
+      </div>
+    </div>
+
+    <div class="card-controls">
+      <button class="btn btn-green btn-sm" id="btn-start-${vm.name}"
+        ${isRunning ? 'disabled' : ''}
+        onclick="vmAction('${vm.name}', 'start')">&#9654; START</button>
+      <button class="btn btn-yellow btn-sm" id="btn-shutdown-${vm.name}"
+        ${isOff ? 'disabled' : ''}
+        onclick="vmAction('${vm.name}', 'shutdown')">&#9646;&#9646; SHUTDOWN</button>
+      <button class="btn btn-red btn-sm" id="btn-destroy-${vm.name}"
+        ${isOff ? 'disabled' : ''}
+        onclick="vmAction('${vm.name}', 'destroy')">&#9632; FORCE STOP</button>
+    </div>
+  </div>
+
+  <div class="card-status" id="status-${vm.name}"></div>
+
+  <div class="snapshot-section">
+    <button class="snapshot-toggle" id="snap-toggle-${vm.name}"
+      onclick="toggleSnapPanel('${vm.name}')">
+      <span class="arrow">&#9656;</span> SNAPSHOTS ${snaps.length > 0 ? `(${snaps.length})` : ''}
+    </button>
+    <div class="snapshot-panel" id="snap-panel-${vm.name}">
+
+      <div class="snap-subsection">
+        <div class="snap-subsection-title">// REVERT TO SNAPSHOT</div>
+        <div class="snap-row">
+          ${snaps.length > 0
+            ? `<select class="snap-select" id="snap-revert-sel-${vm.name}">${snapOptions}</select>
+               <button class="btn btn-cyan btn-sm" onclick="openRevertDialog('${vm.name}')">REVERT</button>`
+            : `<span style="color:var(--dim);font-size:11px;">no snapshots</span>`
+          }
+        </div>
+      </div>
+
+      <div class="snap-subsection">
+        <div class="snap-subsection-title">// CREATE SNAPSHOT <span style="color:var(--dim);font-size:9px;">(VM will be shut down first)</span></div>
+        <input class="snap-input" id="snap-name-${vm.name}" placeholder="SNAPSHOT NAME" maxlength="64">
+        <input class="snap-input" id="snap-desc-${vm.name}" placeholder="DESCRIPTION (optional)" maxlength="255">
+        <button class="btn btn-green btn-sm" onclick="createSnapshot('${vm.name}')">+ CREATE</button>
+      </div>
+
+      ${snaps.length > 0 ? `
+      <div class="snap-subsection">
+        <div class="snap-subsection-title">// DELETE SNAPSHOT</div>
+        <div class="snap-row">
+          <select class="snap-select" id="snap-del-sel-${vm.name}">${snapOptions}</select>
+          <button class="btn btn-red btn-sm" onclick="openDeleteDialog('${vm.name}')">DELETE</button>
+        </div>
+      </div>` : ''}
+
+    </div>
+  </div>
+</div>`;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderDashboard() {
+  const grid = document.getElementById('vm-grid');
+  if (!vmData.length) {
+    grid.innerHTML = '<div class="loading-card">NO VMs FOUND</div>';
+    return;
+  }
+  // Preserve open snap panel states
+  const openPanels = new Set();
+  vmData.forEach(vm => {
+    const panel = document.getElementById(`snap-panel-${vm.name}`);
+    if (panel && panel.classList.contains('open')) openPanels.add(vm.name);
+  });
+
+  grid.innerHTML = vmData.map(vm => renderVM(vm)).join('');
+
+  // Restore open panels
+  openPanels.forEach(name => {
+    const panel = document.getElementById(`snap-panel-${name}`);
+    const toggle = document.getElementById(`snap-toggle-${name}`);
+    if (panel) panel.classList.add('open');
+    if (toggle) toggle.classList.add('open');
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Poll
+// ---------------------------------------------------------------------------
+async function refreshVMs() {
+  try {
+    const { ok, data } = await api('GET', '/api/vms');
+    if (!ok) return;
+    vmData = data;
+    // Load snapshots for any VM not yet cached
+    await Promise.all(vmData.map(vm => {
+      if (!snapshots[vm.name]) return fetchSnapshots(vm.name);
+      return Promise.resolve();
+    }));
+    renderDashboard();
+  } catch (e) {
+    // silently ignore transient errors
+  }
+}
+
+refreshVMs();
+setInterval(refreshVMs, 3000);
+
+// ---------------------------------------------------------------------------
+// Snapshot panel toggle
+// ---------------------------------------------------------------------------
+async function toggleSnapPanel(vmName) {
+  const panel = document.getElementById(`snap-panel-${vmName}`);
+  const toggle = document.getElementById(`snap-toggle-${vmName}`);
+  const isOpen = panel.classList.contains('open');
+  if (!isOpen) {
+    await fetchSnapshots(vmName);
+    renderDashboard(); // re-render to pick up latest snap list
+    // Re-open after re-render
+    const p2 = document.getElementById(`snap-panel-${vmName}`);
+    const t2 = document.getElementById(`snap-toggle-${vmName}`);
+    if (p2) p2.classList.add('open');
+    if (t2) t2.classList.add('open');
+  } else {
+    panel.classList.remove('open');
+    toggle.classList.remove('open');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VM actions
+// ---------------------------------------------------------------------------
+function setBusy(vmName, busy) {
+  const btns = ['start', 'shutdown', 'destroy'].map(a =>
+    document.getElementById(`btn-${a}-${vmName}`)
+  ).filter(Boolean);
+  btns.forEach(b => { b.disabled = busy; });
+  setBulkBusy(busy);
+}
+
+function setBulkBusy(busy) {
+  ['btn-start-all', 'btn-stop-all', 'btn-revert-all'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = busy;
+  });
+}
+
+async function vmAction(vmName, action, body) {
+  setBusy(vmName, true);
+  setCardStatus(vmName, actionLabel(action) + '...');
+  try {
+    const { ok, data } = await api('POST', `/api/vm/${vmName}/${action}`, body || {});
+    if (!ok) {
+      toast(`${vmName}: ${data.error || 'unknown error'}`, 'err');
+    } else {
+      toast(`${vmName}: ${actionLabel(action)} OK`, 'ok');
+    }
+  } catch (e) {
+    toast(`${vmName}: request failed`, 'err');
+  } finally {
+    setBusy(vmName, false);
+    setCardStatus(vmName, '');
+    await refreshVMs();
+  }
+}
+
+function actionLabel(a) {
+  const labels = {start:'STARTING', shutdown:'SHUTTING DOWN', destroy:'FORCE STOPPING',
+    'snapshot/create':'CREATING SNAPSHOT', 'snapshot/revert':'REVERTING', 'snapshot/delete':'DELETING SNAPSHOT'};
+  return labels[a] || a.toUpperCase();
+}
+
+// ---------------------------------------------------------------------------
+// Bulk actions
+// ---------------------------------------------------------------------------
+async function startAll() {
+  setBulkBusy(true);
+  toast('Starting all VMs...', 'info');
+  try {
+    const { ok, data } = await api('POST', '/api/vms/start-all');
+    if (!ok) toast('Start all: ' + (data.error || 'error'), 'err');
+    else toast('Start all: command sent', 'ok');
+  } catch (e) {
+    toast('Start all: request failed', 'err');
+  } finally {
+    setBulkBusy(false);
+    await refreshVMs();
+  }
+}
+
+async function stopAll() {
+  setBulkBusy(true);
+  toast('Shutting down all VMs...', 'info');
+  try {
+    const { ok, data } = await api('POST', '/api/vms/stop-all');
+    if (!ok) toast('Stop all: ' + (data.error || 'error'), 'err');
+    else toast('Stop all: command sent', 'ok');
+  } catch (e) {
+    toast('Stop all: request failed', 'err');
+  } finally {
+    setBulkBusy(false);
+    await refreshVMs();
+  }
+}
+
+function openRevertAllDialog() {
+  document.getElementById('revert-all-dialog').showModal();
+  document.getElementById('revert-all-snap-input').select();
+}
+
+async function confirmRevertAll() {
+  const snapName = document.getElementById('revert-all-snap-input').value.trim();
+  if (!snapName) {
+    toast('Enter a snapshot name', 'err');
+    return;
+  }
+  document.getElementById('revert-all-dialog').close();
+  setBulkBusy(true);
+  toast(`Reverting all VMs to "${snapName}" — shutting down first...`, 'info');
+  try {
+    const { ok, data } = await api('POST', '/api/vms/revert-all', { snapshot: snapName });
+    if (!ok) toast('Revert all: ' + (data.error || 'error'), 'err');
+    else toast(`All VMs reverted to "${snapName}"`, 'ok');
+  } catch (e) {
+    toast('Revert all: request failed', 'err');
+  } finally {
+    setBulkBusy(false);
+    Object.keys(snapshots).forEach(k => delete snapshots[k]);
+    await refreshVMs();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot: revert
+// ---------------------------------------------------------------------------
+function openRevertDialog(vmName) {
+  const sel = document.getElementById(`snap-revert-sel-${vmName}`);
+  if (!sel) return;
+  const snap = sel.value;
+  pendingRevert = { vmName, snapshot: snap };
+  document.getElementById('revert-vm-name').textContent = vmName;
+  document.getElementById('revert-snap-name').textContent = snap;
+  document.getElementById('revert-dialog').showModal();
+}
+
+async function confirmRevert() {
+  if (!pendingRevert) return;
+  document.getElementById('revert-dialog').close();
+  const { vmName, snapshot } = pendingRevert;
+  pendingRevert = null;
+
+  setBusy(vmName, true);
+  setCardStatus(vmName, 'REVERTING TO SNAPSHOT...');
+  try {
+    const { ok, data } = await api('POST', `/api/vm/${vmName}/snapshot/revert`, { snapshot });
+    if (!ok) toast(`${vmName}: ${data.error || 'revert failed'}`, 'err');
+    else toast(`${vmName}: reverted to ${snapshot}`, 'ok');
+  } catch (e) {
+    toast(`${vmName}: request failed`, 'err');
+  } finally {
+    setBusy(vmName, false);
+    setCardStatus(vmName, '');
+    delete snapshots[vmName];
+    await refreshVMs();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot: create (shutdown → poll → create)
+// ---------------------------------------------------------------------------
+async function createSnapshot(vmName) {
+  const nameEl = document.getElementById(`snap-name-${vmName}`);
+  const descEl = document.getElementById(`snap-desc-${vmName}`);
+  const snapName = nameEl ? nameEl.value.trim() : '';
+  const snapDesc = descEl ? descEl.value.trim() : '';
+
+  if (!snapName) {
+    toast('Enter a snapshot name first', 'err');
+    nameEl && nameEl.focus();
+    return;
+  }
+
+  setBusy(vmName, true);
+
+  const vm = vmData.find(v => v.name === vmName);
+  const isWindows = vm && vm.os && vm.os.toLowerCase().includes('windows');
+  const timeoutMs = isWindows ? 120000 : 60000;
+
+  try {
+    // Check if already off
+    const currentVm = vmData.find(v => v.name === vmName);
+    if (currentVm && currentVm.state !== 'shut off') {
+      setCardStatus(vmName, 'SHUTTING DOWN FOR SNAPSHOT...');
+      const { ok, data } = await api('POST', `/api/vm/${vmName}/shutdown`);
+      if (!ok) {
+        toast(`${vmName}: shutdown failed — ${data.error}`, 'err');
+        return;
+      }
+
+      // Poll until shut off
+      setCardStatus(vmName, 'WAITING FOR SHUTDOWN...');
+      const deadline = Date.now() + timeoutMs;
+      let didShutOff = false;
+      while (Date.now() < deadline) {
+        await sleep(2000);
+        const { ok: ok2, data: d2 } = await api('GET', '/api/vms');
+        if (ok2) {
+          vmData = d2;
+          const v = d2.find(v => v.name === vmName);
+          if (v && v.state === 'shut off') { didShutOff = true; break; }
+        }
+      }
+      if (!didShutOff) {
+        toast(`${vmName}: VM did not shut down in time`, 'err');
+        return;
+      }
+    }
+
+    setCardStatus(vmName, 'CREATING SNAPSHOT...');
+    const { ok, data } = await api('POST', `/api/vm/${vmName}/snapshot/create`, {
+      name: snapName, desc: snapDesc
+    });
+    if (!ok) {
+      toast(`${vmName}: snapshot failed — ${data.error}`, 'err');
+    } else {
+      toast(`${vmName}: snapshot "${snapName}" created`, 'ok');
+      if (nameEl) nameEl.value = '';
+      if (descEl) descEl.value = '';
+    }
+  } catch (e) {
+    toast(`${vmName}: request failed`, 'err');
+  } finally {
+    setBusy(vmName, false);
+    setCardStatus(vmName, '');
+    delete snapshots[vmName];
+    await refreshVMs();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot: delete
+// ---------------------------------------------------------------------------
+function openDeleteDialog(vmName) {
+  const sel = document.getElementById(`snap-del-sel-${vmName}`);
+  if (!sel) return;
+  const snap = sel.value;
+  pendingDelete = { vmName, snapshot: snap };
+  document.getElementById('delete-vm-name').textContent = vmName;
+  document.getElementById('delete-snap-name').textContent = snap;
+  document.getElementById('delete-dialog').showModal();
+}
+
+async function confirmDelete() {
+  if (!pendingDelete) return;
+  document.getElementById('delete-dialog').close();
+  const { vmName, snapshot } = pendingDelete;
+  pendingDelete = null;
+
+  setBusy(vmName, true);
+  setCardStatus(vmName, 'DELETING SNAPSHOT...');
+  try {
+    const { ok, data } = await api('POST', `/api/vm/${vmName}/snapshot/delete`, { snapshot });
+    if (!ok) toast(`${vmName}: ${data.error || 'delete failed'}`, 'err');
+    else toast(`${vmName}: snapshot "${snapshot}" deleted`, 'ok');
+  } catch (e) {
+    toast(`${vmName}: request failed`, 'err');
+  } finally {
+    setBusy(vmName, false);
+    setCardStatus(vmName, '');
+    delete snapshots[vmName];
+    await refreshVMs();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>

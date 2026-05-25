@@ -19,3 +19,8 @@ dockerfiles/scenario/range-ca.key
 
 disks/
 isos/
+
+# GUI compiled binary
+cyberrange-gui
+
+docker/

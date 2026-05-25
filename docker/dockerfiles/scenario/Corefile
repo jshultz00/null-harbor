@@ -1,9 +1,0 @@
-# Static Corefile — fallback only.
-# entrypoint.sh generates /etc/coredns/Corefile.dynamic at runtime.
-# CoreDNS is invoked as: coredns -conf /etc/coredns/Corefile.dynamic
-.:53 {
-    forward . 8.8.8.8
-    log
-    errors
-    cache 30
-}
