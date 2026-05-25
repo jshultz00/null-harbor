@@ -28,9 +28,9 @@ type VMConfig struct {
 }
 
 var vmCatalog = []VMConfig{
-	{Name: "kali-attacker", OS: "Kali Linux 2026.1", IP: "172.16.0.1", Role: "Attacker"},
-	{Name: "ubuntu24", OS: "Ubuntu 24.04 Server", IP: "172.16.0.100", Role: "Linux Target"},
-	{Name: "windows10", OS: "Windows 10 Enterprise 22H2", IP: "172.16.0.101", Role: "Windows Target"},
+	{Name: "kali-attacker", OS: "Kali Linux 2026.1", IP: "10.0.0.1", Role: "Attacker"},
+	{Name: "ubuntu24", OS: "Ubuntu 24.04 Server", IP: "10.0.0.100", Role: "Linux Target"},
+	{Name: "windows10", OS: "Windows 10 Enterprise 22H2", IP: "10.0.0.101", Role: "Windows Target"},
 }
 
 // ---------------------------------------------------------------------------
