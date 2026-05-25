@@ -46,8 +46,8 @@ virt-viewer attacker &
 | Name | OS | IP | Role |
 |------|----|----|------|
 | `attacker` | Kali Linux 2026.1 | 10.0.0.1 | Attacker |
-| `user-ubuntu24` | Ubuntu 24.04 Server | 10.0.0.100 | Linux target |
-| `user-windows10` | Windows 10 Enterprise | 10.0.0.101 | Windows target |
+| `user-ubuntu24` | Ubuntu 24.04 Server | 10.0.0.100 | Linux user |
+| `user-windows10` | Windows 10 Enterprise | 10.0.0.101 | Windows user |
 
 **Network:** `10.0.0.0/24` (c2 network, air-gapped)
 
