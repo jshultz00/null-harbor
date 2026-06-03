@@ -7,7 +7,7 @@ const NETWORK_MAP_DATA = {
     "deployment": "libvirt/kvm",
     "host_requirements": {
       "note": "KVM hypervisor with libvirt. Network: c2 (10.0.0.0/24)",
-      "min_ram_all_up": "~16 GB"
+      "min_ram_all_up": "~22 GB"
     }
   },
   "networks": {
@@ -33,6 +33,23 @@ const NETWORK_MAP_DATA = {
       },
       "interfaces": [
         {"network": "c2", "ip": "10.0.0.1/24"}
+      ]
+    },
+    "dc01": {
+      "OS": "Windows Server 2022",
+      "CPUs": "2",
+      "Memory (GB)": "6",
+      "HDD Size (GB)": "80",
+      "description": "Domain controller for nullharbor.net (Server Core). Hosts AD DS, DNS, AD CS (Certificate Authority), and SMB file shares. Core of the domain — boots first; all member machines depend on it for DNS and authentication, so the GUI 'Start All' starts dc01 and waits for AD before the rest. Baseline snapshot: initialsnap",
+      "deploy": {
+        "type": "kvm-vm",
+        "image": "disks/dc01.qcow2",
+        "mem_limit": "6g",
+        "cpus": 2,
+        "disk_size": "80g"
+      },
+      "interfaces": [
+        {"network": "c2", "ip": "10.0.0.10/24"}
       ]
     },
     "user-ubuntu24": {
@@ -108,10 +125,22 @@ const NETWORK_MAP_DATA = {
         "connectorSide": "bottom"
       },
       {
+        "id":            "Infrastructure",
+        "label":         "INFRASTRUCTURE",
+        "bgColor":       "#0a142e",
+        "x":             280,
+        "y":             40,
+        "cols":          1,
+        "nodeW":         160,
+        "nodeH":         48,
+        "segment":       "infra",
+        "connectorSide": "bottom"
+      },
+      {
         "id":            "Users",
         "label":         "USERS",
         "bgColor":       "#0a1a2e",
-        "x":             220,
+        "x":             540,
         "y":             40,
         "cols":          2,
         "nodeW":         140,
@@ -200,6 +229,8 @@ function getMachinesBySegment(segment) {
   const machines = NETWORK_MAP_DATA.machines;
   if (segment === 'attacker') {
     return ['attacker'];
+  } else if (segment === 'infra') {
+    return ['dc01'];
   } else if (segment === 'c2') {
     return ['user-ubuntu24', 'user-windows10'];
   }

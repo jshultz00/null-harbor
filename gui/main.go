@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,9 +30,18 @@ type VMConfig struct {
 
 var vmCatalog = []VMConfig{
 	{Name: "attacker", OS: "Kali Linux 2026.1", IP: "10.0.0.1", Role: "Attacker"},
+	{Name: "dc01", OS: "Windows Server 2022", IP: "10.0.0.10", Role: "Domain Controller"},
 	{Name: "user-ubuntu24", OS: "Ubuntu 24.04 Server", IP: "10.0.0.100", Role: "Linux User"},
 	{Name: "user-windows10", OS: "Windows 10 Enterprise 22H2", IP: "10.0.0.101", Role: "Windows User"},
 }
+
+// dc01 is the domain controller (AD DS + DNS). Member machines depend on it for
+// DNS resolution and authentication, so "Start All" boots it first and waits for
+// its LDAP port to answer before starting the rest of the fleet.
+const (
+	dcName      = "dc01"
+	dcReadyAddr = "10.0.0.10:389" // LDAP — answers once AD DS is up
+)
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -66,6 +76,10 @@ type SnapshotList struct {
 var (
 	opMu    sync.Mutex
 	webRoot string
+
+	// Guards the staged start-all goroutine so overlapping clicks don't stack.
+	startAllMu     sync.Mutex
+	startAllActive bool
 )
 
 // ---------------------------------------------------------------------------
@@ -170,7 +184,8 @@ func parseDiskSize(name string) (path string, sizeGB float64) {
 
 // shutdownTimeout returns how long to wait for a VM to reach shut off state.
 func shutdownTimeout(name string) time.Duration {
-	if name == "windows10" {
+	// Windows guests shut down slowly — give them extra time.
+	if name == "windows10" || name == "dc01" {
 		return 120 * time.Second
 	}
 	return 60 * time.Second
@@ -406,7 +421,7 @@ func handleRevertAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Phase 2: Wait for all VMs to reach shut off (use the longest timeout)
-	deadline := time.Now().Add(150 * time.Second)
+	deadline := time.Now().Add(180 * time.Second)
 	for time.Now().Before(deadline) {
 		states = parseVirshList()
 		allOff := true
@@ -440,12 +455,62 @@ func handleRevertAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, APIResponse{OK: true})
 }
 
-func handleStartAll(w http.ResponseWriter, r *http.Request) {
-	opMu.Lock()
-	defer opMu.Unlock()
-	for _, cfg := range vmCatalog {
-		runVirsh("start", cfg.Name) //nolint — already-running VMs return error, that's fine
+// waitDCReady polls the DC's LDAP port until it answers or the timeout elapses,
+// signalling that AD DS is up and ready to serve member machines.
+func waitDCReady(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", dcReadyAddr, 2*time.Second)
+		if err == nil {
+			conn.Close()
+			return true
+		}
+		time.Sleep(3 * time.Second)
 	}
+	return false
+}
+
+// startAllStaged boots dc01 first, waits for AD to come up, then starts the rest.
+// Runs in its own goroutine so the HTTP request returns immediately; progress is
+// visible through the regular /api/vms polling.
+func startAllStaged() {
+	defer func() {
+		startAllMu.Lock()
+		startAllActive = false
+		startAllMu.Unlock()
+	}()
+
+	// Phase 1: start the domain controller.
+	opMu.Lock()
+	runVirsh("start", dcName) //nolint — already-running VMs return error, that's fine
+	opMu.Unlock()
+
+	// Phase 2: wait (lock released) for AD to answer, capped so a non-responsive
+	// DC can't stall the fleet forever.
+	waitDCReady(180 * time.Second)
+
+	// Phase 3: start the remaining VMs.
+	opMu.Lock()
+	for _, cfg := range vmCatalog {
+		if cfg.Name == dcName {
+			continue
+		}
+		runVirsh("start", cfg.Name) //nolint
+	}
+	opMu.Unlock()
+}
+
+func handleStartAll(w http.ResponseWriter, r *http.Request) {
+	startAllMu.Lock()
+	if startAllActive {
+		startAllMu.Unlock()
+		writeJSON(w, http.StatusOK, APIResponse{OK: true})
+		return
+	}
+	startAllActive = true
+	startAllMu.Unlock()
+
+	go startAllStaged()
 	writeJSON(w, http.StatusOK, APIResponse{OK: true})
 }
 

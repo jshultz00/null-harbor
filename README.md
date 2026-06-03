@@ -29,6 +29,7 @@ sudo systemctl {start,stop,restart,status} null-harbor-gui
 ### 2. Start VMs
 ```bash
 virsh net-start c2
+virsh start dc01           # domain controller — start first, give it ~2 min to bring up AD/DNS
 virsh start attacker
 virsh start user-ubuntu24
 virsh start user-windows10
@@ -46,8 +47,14 @@ virt-viewer attacker &
 | Name | OS | IP | Role |
 |------|----|----|------|
 | `attacker` | Kali Linux 2026.1 | 10.0.0.1 | Attacker |
+| `dc01` | Windows Server 2022 | 10.0.0.10 | DC + DNS + AD CS + file shares |
 | `user-ubuntu24` | Ubuntu 24.04 Server | 10.0.0.100 | Linux user |
 | `user-windows10` | Windows 10 Enterprise | 10.0.0.101 | Windows user |
+
+**Domain:** `nullharbor.net` — `dc01` is the domain controller. It must boot before the member
+machines (they depend on it for DNS and authentication). The GUI **Start All** handles this
+automatically: it starts `dc01` first, waits for AD to come up, then starts the rest. When
+starting manually with `virsh`, start `dc01` first.
 
 **Network:** `10.0.0.0/24` (c2 network, air-gapped)
 
@@ -93,4 +100,4 @@ virsh net-start c2
 
 ---
 
-**Last Updated:** May 2026
+**Last Updated:** June 2026

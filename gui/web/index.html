@@ -804,7 +804,7 @@
   <div class="dialog-body">
     <span class="dialog-label">SNAPSHOT NAME</span>
     <input class="snap-input" id="revert-all-snap-input" value="initialsnap" placeholder="SNAPSHOT NAME" maxlength="64">
-    <div style="margin-top:8px; font-size:10px; color:var(--text2);">Applies to: <span style="color:var(--green)">attacker &bull; user-ubuntu24 &bull; user-windows10</span></div>
+    <div style="margin-top:8px; font-size:10px; color:var(--text2);">Applies to: <span style="color:var(--green)">attacker &bull; dc01 &bull; user-ubuntu24 &bull; user-windows10</span></div>
   </div>
   <div class="dialog-actions">
     <button class="btn btn-cyan" onclick="document.getElementById('revert-all-dialog').close()">CANCEL</button>
@@ -1155,11 +1155,11 @@ function actionLabel(a) {
 // ---------------------------------------------------------------------------
 async function startAll() {
   setBulkBusy(true);
-  toast('Starting all VMs...', 'info');
+  toast('Starting dc01 (DC) first, then the rest once AD is up...', 'info');
   try {
     const { ok, data } = await api('POST', '/api/vms/start-all');
     if (!ok) toast('Start all: ' + (data.error || 'error'), 'err');
-    else toast('Start all: command sent', 'ok');
+    else toast('Start all: dc01 booting first, fleet to follow', 'ok');
   } catch (e) {
     toast('Start all: request failed', 'err');
   } finally {
